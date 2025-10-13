@@ -1,22 +1,34 @@
+package com.salex.telegram.Bot;
+
+import com.salex.telegram.commanding.CommandHandler;
+import com.salex.telegram.ticketing.TicketService;
+import com.salex.telegram.ticketing.commands.TicketCommandHandler;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.net.URI;
 import java.net.http.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.HashMap;
+import java.util.Map;
 
-public class MyBot extends TelegramLongPollingBot {
+public class TelegramBot extends TelegramLongPollingBot {
     private final String username;
     private final Connection conn;
 
-    public MyBot(String token, String username, Connection conn) {
+    private final Map<String, CommandHandler> commands = new HashMap<>();
+
+    public TelegramBot (String token, String username, Connection conn) {
         super(token);
         this.username = username;
         this.conn = conn;
+
+        commands.put("/menu", new MenuCommand());
+        commands.put("/ticket", new TicketCommandHandler(new TicketService()));
+
     }
 
     @Override
@@ -76,6 +88,27 @@ public class MyBot extends TelegramLongPollingBot {
                 e.printStackTrace();
             }
         }
+    }
+
+    private void routeMessage(Update update) {
+        String text = update.getMessage().getText();
+        if(text == null) return;
+
+        if (text.startsWith("/menu")) {
+            handleMenu(update);
+        } else if (text.startsWith("/ticket")) {
+            handleTicket(update);
+        }
+        else {
+            System.out.println("Did not return a specified item.");
+        }
+    }
+
+    private void handleTicket (Update update) {
+
+    }
+
+    private void handleMenu (Update update) {
     }
 
 

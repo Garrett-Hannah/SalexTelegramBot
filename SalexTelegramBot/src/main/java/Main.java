@@ -1,3 +1,4 @@
+import com.salex.telegram.Bot.TelegramBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import java.sql.Connection;
@@ -16,7 +17,7 @@ public class Main {
         );
 
         TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-        botsApi.registerBot(new MyBot(token, username, conn));
+        botsApi.registerBot(new TelegramBot(token, username, conn));
         System.out.println("Bot started...");
     }
 }

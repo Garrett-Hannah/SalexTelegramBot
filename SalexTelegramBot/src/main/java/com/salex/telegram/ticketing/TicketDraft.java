@@ -16,6 +16,7 @@ public final class TicketDraft {
     }
 
     private final Map<Step, String> values = new EnumMap<>(Step.class);
+    private Long ticketId;
 
     public void put(Step step, String value) {
         Objects.requireNonNull(value, "value");
@@ -34,5 +35,13 @@ public final class TicketDraft {
 
     public Map<Step, String> asMap() {
         return Map.copyOf(values);
+    }
+
+    public void setTicketId(Long ticketId) {
+        this.ticketId = ticketId;
+    }
+
+    public Long getTicketId() {
+        return ticketId;
     }
 }

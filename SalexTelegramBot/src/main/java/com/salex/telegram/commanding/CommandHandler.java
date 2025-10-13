@@ -6,5 +6,5 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 public interface CommandHandler {
     String getName(); // eg /menu, /ticket etc...
     String getDescription();
-    void handle(Update update, TelegramBot bot);
+    void handle(Update update, TelegramBot bot, long userId);
 }

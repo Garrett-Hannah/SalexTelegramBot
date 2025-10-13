@@ -116,6 +116,18 @@ public class TicketService {
         return repository.save(closedTicket);
     }
 
+    public boolean hasActiveDraft(long chatId, long userId) {
+        return sessionManager.getDraft(chatId, userId).isPresent();
+    }
+
+    public Optional<TicketDraft.Step> getActiveStep(long chatId, long userId) {
+        Optional<TicketDraft> draft = sessionManager.getDraft(chatId, userId);
+        if (draft.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(determineNextStep(draft.get()));
+    }
+
     private TicketDraft.Step determineNextStep(TicketDraft draft) {
         if (draft.get(TicketDraft.Step.SUMMARY) == null) {
             return TicketDraft.Step.SUMMARY;

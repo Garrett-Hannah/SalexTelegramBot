@@ -3,24 +3,19 @@ package com.salex.telegram.ticketing;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TicketServiceTest {
 
-    private InMemoryTicketRepository repository;
-    private InMemorySessionManager sessionManager;
+    private TicketRepository repository;
+    private TicketSessionManager sessionManager;
     private TicketService service;
 
     @BeforeEach
     void setUp() {
         repository = new InMemoryTicketRepository();
-        sessionManager = new InMemorySessionManager();
+        sessionManager = new InMemoryTicketSessionManager();
         service = new TicketService(repository, sessionManager);
     }
 
@@ -115,65 +110,32 @@ class TicketServiceTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
-    private static final class InMemoryTicketRepository implements TicketRepository {
-        private final Map<Long, Ticket> store = new HashMap<>();
-        private long sequence = 1L;
+    @Test
+    void hasActiveDraftReportsState() {
+        long chatId = 301L;
+        long userId = 33L;
 
-        @Override
-        public synchronized Ticket createDraftTicket(Ticket draft) {
-            long id = sequence++;
-            Ticket persisted = draft.toBuilder()
-                    .id(id)
-                    .build();
-            store.put(id, persisted);
-            return persisted;
-        }
-
-        @Override
-        public Optional<Ticket> findById(long ticketId) {
-            return Optional.ofNullable(store.get(ticketId));
-        }
-
-        @Override
-        public List<Ticket> findAllForUser(long userId) {
-            return store.values().stream()
-                    .filter(ticket -> ticket.getCreatedBy() == userId)
-                    .sorted((left, right) -> Long.compare(left.getId(), right.getId()))
-                    .toList();
-        }
-
-        @Override
-        public Ticket save(Ticket ticket) {
-            store.put(ticket.getId(), ticket);
-            return ticket;
-        }
+        assertThat(service.hasActiveDraft(chatId, userId)).isFalse();
+        service.startTicketCreation(chatId, userId);
+        assertThat(service.hasActiveDraft(chatId, userId)).isTrue();
+        service.collectTicketField(chatId, userId, "Summary");
+        service.collectTicketField(chatId, userId, "low");
+        service.collectTicketField(chatId, userId, "Details");
+        assertThat(service.hasActiveDraft(chatId, userId)).isFalse();
     }
 
-    private static final class InMemorySessionManager implements TicketSessionManager {
-        private final Map<String, TicketDraft> sessions = new HashMap<>();
+    @Test
+    void getActiveStepReturnsNextRequiredField() {
+        long chatId = 302L;
+        long userId = 34L;
+        service.startTicketCreation(chatId, userId);
 
-        @Override
-        public void openSession(long chatId, long userId) {
-            sessions.put(sessionKey(chatId, userId), new TicketDraft());
-        }
-
-        @Override
-        public Optional<TicketDraft> getDraft(long chatId, long userId) {
-            return Optional.ofNullable(sessions.get(sessionKey(chatId, userId)));
-        }
-
-        @Override
-        public void updateDraft(long chatId, long userId, TicketDraft draft) {
-            sessions.put(sessionKey(chatId, userId), draft);
-        }
-
-        @Override
-        public void closeSession(long chatId, long userId) {
-            sessions.remove(sessionKey(chatId, userId));
-        }
-
-        private String sessionKey(long chatId, long userId) {
-            return chatId + ":" + userId;
-        }
+        assertThat(service.getActiveStep(chatId, userId)).contains(TicketDraft.Step.SUMMARY);
+        service.collectTicketField(chatId, userId, "Issue");
+        assertThat(service.getActiveStep(chatId, userId)).contains(TicketDraft.Step.PRIORITY);
+        service.collectTicketField(chatId, userId, "medium");
+        assertThat(service.getActiveStep(chatId, userId)).contains(TicketDraft.Step.DETAILS);
+        service.collectTicketField(chatId, userId, "details here");
+        assertThat(service.getActiveStep(chatId, userId)).isEmpty();
     }
 }

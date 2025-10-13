@@ -3,6 +3,8 @@ package com.salex.telegram.Bot;
 import com.salex.telegram.commanding.CommandHandler;
 import com.salex.telegram.ticketing.InMemory.InMemoryTicketRepository;
 import com.salex.telegram.ticketing.InMemory.InMemoryTicketSessionManager;
+import com.salex.telegram.ticketing.OnServer.ServerTicketRepository;
+import com.salex.telegram.ticketing.OnServer.ServerTicketSessionManager;
 import com.salex.telegram.ticketing.Ticket;
 import com.salex.telegram.ticketing.TicketDraft;
 import com.salex.telegram.ticketing.TicketService;
@@ -46,7 +48,7 @@ public class TelegramBot extends TelegramLongPollingBot {
      */
     public TelegramBot(String token, String username, Connection conn) {
         this(token, username, conn,
-                new TicketService(new InMemoryTicketRepository(), new InMemoryTicketSessionManager()),
+                new TicketService(new ServerTicketRepository(conn), new ServerTicketSessionManager()),
                 new TicketMessageFormatter());
     }
 

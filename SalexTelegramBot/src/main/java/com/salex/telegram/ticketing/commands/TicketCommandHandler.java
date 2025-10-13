@@ -18,21 +18,36 @@ public class TicketCommandHandler implements CommandHandler {
     private final TicketService ticketService;
     private final TicketMessageFormatter formatter;
 
+    /**
+     * Creates a handler for ticket commands.
+     *
+     * @param ticketService backing ticket service
+     * @param formatter     helper used to format responses for Telegram
+     */
     public TicketCommandHandler(TicketService ticketService, TicketMessageFormatter formatter) {
         this.ticketService = ticketService;
         this.formatter = formatter;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getName() {
         return "/ticket";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getDescription() {
         return "Manage support tickets.";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void handle(Update update, TelegramBot bot, long userId) {
         if (!update.hasMessage() || !update.getMessage().hasText()) {
@@ -63,6 +78,13 @@ public class TicketCommandHandler implements CommandHandler {
         }
     }
 
+    /**
+     * Starts a ticket creation workflow and prompts the user for subsequent steps.
+     *
+     * @param chatId chat where the command originated
+     * @param userId internal user identifier
+     * @param bot    bot instance used to send replies
+     */
     private void handleNewTicket(long chatId, long userId, TelegramBot bot) {
         Ticket ticket = ticketService.startTicketCreation(chatId, userId);
         bot.sendMessage(chatId, formatter.formatCreationPrompt(ticket));
@@ -70,11 +92,26 @@ public class TicketCommandHandler implements CommandHandler {
         next.ifPresent(step -> bot.sendMessage(chatId, formatter.formatNextStepPrompt(step)));
     }
 
+    /**
+     * Lists all tickets accessible by the invoking user.
+     *
+     * @param chatId chat where the command originated
+     * @param userId internal user identifier
+     * @param bot    bot instance used to send replies
+     */
     private void handleListTickets(long chatId, long userId, TelegramBot bot) {
         List<Ticket> tickets = ticketService.listTicketsForUser(userId);
         bot.sendMessage(chatId, formatter.formatTicketList(tickets));
     }
 
+    /**
+     * Closes the specified ticket and relays confirmation messages.
+     *
+     * @param tokens command tokens containing the ticket id and optional resolution
+     * @param chatId chat where the command originated
+     * @param userId internal user identifier
+     * @param bot    bot instance used to send replies
+     */
     private void handleCloseTicket(String[] tokens, long chatId, long userId, TelegramBot bot) {
         if (tokens.length < 3) {
             throw new IllegalArgumentException("Provide the ticket id and a resolution note.");
@@ -89,6 +126,14 @@ public class TicketCommandHandler implements CommandHandler {
         bot.sendMessage(chatId, formatter.formatClosingConfirmation(closed));
     }
 
+    /**
+     * Retrieves and displays a single ticket using the supplied command tokens.
+     *
+     * @param tokens command tokens containing the ticket id
+     * @param chatId chat where the command originated
+     * @param userId internal user identifier
+     * @param bot    bot instance used to send replies
+     */
     private void handleTicketLookup(String[] tokens, long chatId, long userId, TelegramBot bot) {
         long ticketId = parseTicketId(tokens[1]);
         ticketService.getTicket(ticketId, userId)
@@ -98,6 +143,13 @@ public class TicketCommandHandler implements CommandHandler {
                 );
     }
 
+    /**
+     * Parses a ticket id from the user-provided token.
+     *
+     * @param token raw token containing the ticket id
+     * @return the parsed ticket identifier
+     * @throws IllegalArgumentException if the token is not numeric
+     */
     private long parseTicketId(String token) {
         try {
             return Long.parseLong(token);

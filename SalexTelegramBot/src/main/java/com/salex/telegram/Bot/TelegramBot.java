@@ -1,8 +1,8 @@
 package com.salex.telegram.Bot;
 
 import com.salex.telegram.commanding.CommandHandler;
-import com.salex.telegram.ticketing.InMemoryTicketRepository;
-import com.salex.telegram.ticketing.InMemoryTicketSessionManager;
+import com.salex.telegram.ticketing.InMemory.InMemoryTicketRepository;
+import com.salex.telegram.ticketing.InMemory.InMemoryTicketSessionManager;
 import com.salex.telegram.ticketing.Ticket;
 import com.salex.telegram.ticketing.TicketDraft;
 import com.salex.telegram.ticketing.TicketService;
@@ -26,6 +26,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Telegram bot implementation that dispatches commands, manages ticket workflows,
+ * and forwards free-form messages to a language model.
+ */
 public class TelegramBot extends TelegramLongPollingBot {
     private final String username;
     private final Connection conn;
@@ -33,12 +37,28 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final TicketMessageFormatter ticketFormatter;
     private final Map<String, CommandHandler> commands = new HashMap<>();
 
+    /**
+     * Creates a bot that uses in-memory ticket backing services for lightweight deployments.
+     *
+     * @param token    bot token provided by Telegram
+     * @param username bot public username
+     * @param conn     JDBC connection used for persistence (may be {@code null} for in-memory usage)
+     */
     public TelegramBot(String token, String username, Connection conn) {
         this(token, username, conn,
                 new TicketService(new InMemoryTicketRepository(), new InMemoryTicketSessionManager()),
                 new TicketMessageFormatter());
     }
 
+    /**
+     * Creates a bot with explicit ticket service and formatter dependencies.
+     *
+     * @param token           bot token provided by Telegram
+     * @param username        bot public username
+     * @param conn            JDBC connection used for persistence (may be {@code null})
+     * @param ticketService   service handling ticket lifecycle operations (may be {@code null} for disabled ticketing)
+     * @param ticketFormatter formatter used for rendering ticket messages (may be {@code null} for disabled ticketing)
+     */
     public TelegramBot(String token, String username, Connection conn,
                        TicketService ticketService,
                        TicketMessageFormatter ticketFormatter) {
@@ -50,6 +70,9 @@ public class TelegramBot extends TelegramLongPollingBot {
         registerDefaultCommands();
     }
 
+    /**
+     * Initialises the default command handlers supported by the bot instance.
+     */
     private void registerDefaultCommands() {
         if (ticketService != null && ticketFormatter != null) {
             commands.put("/ticket", new TicketCommandHandler(ticketService, ticketFormatter));
@@ -57,11 +80,19 @@ public class TelegramBot extends TelegramLongPollingBot {
         commands.put("/menu", new MenuCommandHandler(commands));
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String getBotUsername() {
         return username;
     }
 
+    /**
+     * Routes incoming Telegram updates to the appropriate command or conversational handler.
+     *
+     * @param update the Telegram update to process
+     */
     @Override
     public void onUpdateReceived(Update update) {
         if (update == null || !update.hasMessage() || !update.getMessage().hasText()) {
@@ -92,6 +123,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         handleGeneralMessage(update, userId);
     }
 
+    /**
+     * Resolves and executes a command registered with the bot.
+     *
+     * @param update the update that triggered the command
+     * @param userId the resolved internal user identifier
+     */
     private void handleCommand(Update update, long userId) {
         String commandText = update.getMessage().getText().trim();
         String commandKey = commandText.split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
@@ -106,6 +143,13 @@ public class TelegramBot extends TelegramLongPollingBot {
         handler.handle(update, this, userId);
     }
 
+    /**
+     * Processes user input collected as part of an active ticket draft workflow.
+     *
+     * @param chatId      the chat in which the workflow is running
+     * @param userId      the internal user identifier
+     * @param messageText the latest message supplied by the user
+     */
     private void handleTicketDraftMessage(long chatId, long userId, String messageText) {
         Optional<TicketDraft.Step> currentStep = ticketService.getActiveStep(chatId, userId);
         if (currentStep.isEmpty()) {
@@ -128,6 +172,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    /**
+     * Handles non-command text sent to the bot by relaying it to a language model and persisting the exchange.
+     *
+     * @param update the received Telegram update
+     * @param userId the resolved internal user identifier
+     */
     private void handleGeneralMessage(Update update, long userId) {
         String userText = update.getMessage().getText();
         long chatId = update.getMessage().getChatId();
@@ -153,6 +203,13 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    /**
+     * Ensures that the Telegram user has a corresponding database record, creating one if necessary.
+     *
+     * @param update the update containing the Telegram user metadata
+     * @return the internal user identifier to use for persistence
+     * @throws SQLException if a database operation fails
+     */
     private long ensureUser(Update update) throws SQLException {
         if (conn == null) {
             return update.getMessage().getFrom().getId();
@@ -189,6 +246,12 @@ public class TelegramBot extends TelegramLongPollingBot {
         return userId;
     }
 
+    /**
+     * Sends a plain text message to a Telegram chat, ignoring failures.
+     *
+     * @param chatId the target chat identifier
+     * @param text   message body to send
+     */
     public void sendMessage(long chatId, String text) {
         SendMessage message = new SendMessage(Long.toString(chatId), text);
         try {
@@ -198,6 +261,13 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    /**
+     * Calls the configured OpenAI chat completion endpoint with the supplied prompt.
+     *
+     * @param prompt the message to forward to the language model
+     * @return the raw response payload returned by the API
+     * @throws Exception if the HTTP request fails or the client cannot be created
+     */
     private String callChatGPT(String prompt) throws Exception {
         HttpClient client = HttpClient.newHttpClient();
         String body = """

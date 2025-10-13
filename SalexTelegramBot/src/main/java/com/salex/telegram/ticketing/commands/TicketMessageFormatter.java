@@ -13,11 +13,23 @@ public class TicketMessageFormatter {
     private static final DateTimeFormatter DATE_FORMAT =
             DateTimeFormatter.ISO_INSTANT;
 
+    /**
+     * Builds the initial prompt sent after starting ticket creation.
+     *
+     * @param ticket the newly created ticket
+     * @return message instructing the user on next inputs
+     */
     public String formatCreationPrompt(Ticket ticket) {
         return "Ticket #" + ticket.getId()
                 + " created. We need a summary, priority, and details.";
     }
 
+    /**
+     * Provides guidance on the next required ticket step.
+     *
+     * @param step the pending draft step
+     * @return user-facing instruction
+     */
     public String formatNextStepPrompt(TicketDraft.Step step) {
         return switch (step) {
             case SUMMARY -> "Please provide a short summary for this ticket.";
@@ -27,6 +39,13 @@ public class TicketMessageFormatter {
         };
     }
 
+    /**
+     * Acknowledges that a ticket step was captured successfully.
+     *
+     * @param step   the step that was just processed
+     * @param ticket the latest ticket state
+     * @return acknowledgement message
+     */
     public String formatStepAcknowledgement(TicketDraft.Step step, Ticket ticket) {
         return switch (step) {
             case SUMMARY -> "Summary saved: " + ticket.getSummary();
@@ -36,6 +55,12 @@ public class TicketMessageFormatter {
         };
     }
 
+    /**
+     * Renders a formatted summary card for a single ticket.
+     *
+     * @param ticket the ticket to present
+     * @return formatted ticket card text
+     */
     public String formatTicketCard(Ticket ticket) {
         StringBuilder builder = new StringBuilder();
         builder.append("Ticket #").append(ticket.getId()).append(System.lineSeparator());
@@ -48,6 +73,12 @@ public class TicketMessageFormatter {
         return builder.toString();
     }
 
+    /**
+     * Lists tickets owned by the user in a concise form.
+     *
+     * @param tickets tickets visible to the user
+     * @return formatted list suitable for Telegram
+     */
     public String formatTicketList(List<Ticket> tickets) {
         if (tickets.isEmpty()) {
             return "You have no tickets yet.";
@@ -65,14 +96,31 @@ public class TicketMessageFormatter {
         return builder.toString().trim();
     }
 
+    /**
+     * Generates a message indicating that a ticket is being closed.
+     *
+     * @param ticket the ticket that is closing
+     * @return closing prompt
+     */
     public String formatClosurePrompt(Ticket ticket) {
         return "Closing ticket #" + ticket.getId() + ". Capturing resolution.";
     }
 
+    /**
+     * Builds a not-found message for a ticket lookup.
+     *
+     * @param ticketId id that could not be located
+     * @return not-found text
+     */
     public String formatNotFound(long ticketId) {
         return "Ticket #" + ticketId + " was not found or you do not have access.";
     }
 
+    /**
+     * Returns usage information for all supported ticket commands.
+     *
+     * @return help text describing sub-commands
+     */
     public String formatHelp() {
         return String.join(System.lineSeparator(),
                 "Use the ticket commands:",
@@ -82,14 +130,32 @@ public class TicketMessageFormatter {
                 "/ticket close <id> <note> - close a ticket");
     }
 
+    /**
+     * Wraps an error message in a consistent prefix.
+     *
+     * @param message underlying error detail
+     * @return formatted error
+     */
     public String formatError(String message) {
         return "[Error] " + message;
     }
 
+    /**
+     * Returns confirmation text after a ticket is closed.
+     *
+     * @param ticket the closed ticket
+     * @return closing confirmation message
+     */
     public String formatClosingConfirmation(Ticket ticket) {
         return "Ticket #" + ticket.getId() + " closed.";
     }
 
+    /**
+     * Produces a summary message signalling ticket creation completion.
+     *
+     * @param ticket fully populated ticket
+     * @return creation completion message including the full ticket card
+     */
     public String formatCreationComplete(Ticket ticket) {
         return "Ticket #" + ticket.getId() + " is ready." + System.lineSeparator()
                 + formatTicketCard(ticket);

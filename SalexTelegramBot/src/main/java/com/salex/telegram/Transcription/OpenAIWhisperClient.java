@@ -32,7 +32,7 @@ public class OpenAIWhisperClient implements TranscriptionClient {
     OpenAIWhisperClient(HttpClient httpClient, String apiKey, String model, URI endpoint) {
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
         this.apiKey = Objects.requireNonNull(apiKey, "apiKey");
-        this.model = model == null || model.isBlank() ? "gpt-4o-mini-translate" : model;
+        this.model = model == null || model.isBlank() ? "gpt-4o-transcribe" : model;
         this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
     }
 

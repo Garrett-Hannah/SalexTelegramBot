@@ -11,7 +11,7 @@ public class AudioTranscoder {
 
     public AudioResource convertFormat(AudioResource resource)
     {
-        resource.data();
-
+        //resource.data();
+        return null;
     }
 }

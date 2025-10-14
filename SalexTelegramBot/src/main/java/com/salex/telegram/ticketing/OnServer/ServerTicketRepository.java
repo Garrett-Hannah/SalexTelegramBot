@@ -4,6 +4,8 @@ import com.salex.telegram.ticketing.Ticket;
 import com.salex.telegram.ticketing.TicketPriority;
 import com.salex.telegram.ticketing.TicketRepository;
 import com.salex.telegram.ticketing.TicketStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -21,6 +23,7 @@ import java.util.Optional;
  * JDBC-backed ticket repository that persists records to the configured database.
  */
 public class ServerTicketRepository implements TicketRepository {
+    private static final Logger log = LoggerFactory.getLogger(ServerTicketRepository.class);
     private static final String INSERT_SQL = """
             INSERT INTO tickets (status, priority, created_at, updated_at, created_by, assignee, summary, details)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -52,6 +55,7 @@ public class ServerTicketRepository implements TicketRepository {
      */
     public ServerTicketRepository(Connection connection) {
         this.connection = Objects.requireNonNull(connection, "connection");
+        log.info("ServerTicketRepository initialised with JDBC connection");
     }
 
     /**
@@ -65,9 +69,12 @@ public class ServerTicketRepository implements TicketRepository {
                 if (!rs.next()) {
                     throw new IllegalStateException("Failed to insert ticket draft");
                 }
-                return mapRow(rs);
+                Ticket ticket = mapRow(rs);
+                log.debug("Inserted ticket {} for user {}", ticket.getId(), ticket.getCreatedBy());
+                return ticket;
             }
         } catch (SQLException ex) {
+            log.error("Failed to create draft ticket: {}", ex.getMessage(), ex);
             throw new RuntimeException("Failed to create draft ticket", ex);
         }
     }
@@ -81,11 +88,14 @@ public class ServerTicketRepository implements TicketRepository {
             ps.setLong(1, ticketId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapRow(rs));
+                    Ticket ticket = mapRow(rs);
+                    log.debug("Loaded ticket {} for user {}", ticketId, ticket.getCreatedBy());
+                    return Optional.of(ticket);
                 }
                 return Optional.empty();
             }
         } catch (SQLException ex) {
+            log.error("Failed to find ticket {}: {}", ticketId, ex.getMessage(), ex);
             throw new RuntimeException("Failed to find ticket with id " + ticketId, ex);
         }
     }
@@ -102,9 +112,11 @@ public class ServerTicketRepository implements TicketRepository {
                 while (rs.next()) {
                     tickets.add(mapRow(rs));
                 }
+                log.debug("Fetched {} tickets for user {}", tickets.size(), userId);
                 return tickets;
             }
         } catch (SQLException ex) {
+            log.error("Failed to list tickets for user {}: {}", userId, ex.getMessage(), ex);
             throw new RuntimeException("Failed to list tickets for user " + userId, ex);
         }
     }
@@ -131,9 +143,12 @@ public class ServerTicketRepository implements TicketRepository {
             if (updated != 1) {
                 throw new IllegalStateException("Ticket not found or not updated: " + ticket.getId());
             }
-            return findById(ticket.getId())
+            Ticket saved = findById(ticket.getId())
                     .orElseThrow(() -> new IllegalStateException("Ticket missing after update: " + ticket.getId()));
+            log.debug("Updated ticket {}", ticket.getId());
+            return saved;
         } catch (SQLException ex) {
+            log.error("Failed to save ticket {}: {}", ticket.getId(), ex.getMessage(), ex);
             throw new RuntimeException("Failed to save ticket " + ticket.getId(), ex);
         }
     }

@@ -10,6 +10,8 @@ import com.salex.telegram.ticketing.TicketDraft;
 import com.salex.telegram.ticketing.TicketService;
 import com.salex.telegram.ticketing.commands.TicketCommandHandler;
 import com.salex.telegram.ticketing.commands.TicketMessageFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -33,6 +35,8 @@ import java.util.Optional;
  * and forwards free-form messages to a language model.
  */
 public class TelegramBot extends TelegramLongPollingBot {
+    private static final Logger log = LoggerFactory.getLogger(TelegramBot.class);
+
     private final String username;
     private final Connection conn;
     private final TicketService ticketService;
@@ -48,8 +52,9 @@ public class TelegramBot extends TelegramLongPollingBot {
      */
     public TelegramBot(String token, String username, Connection conn) {
         this(token, username, conn,
-                new TicketService(new ServerTicketRepository(conn), new ServerTicketSessionManager()),
+                createDefaultTicketService(conn),
                 new TicketMessageFormatter());
+        log.info("TelegramBot initialised with {} ticket backend", conn != null ? "JDBC" : "in-memory");
     }
 
     /**
@@ -70,6 +75,14 @@ public class TelegramBot extends TelegramLongPollingBot {
         this.ticketService = ticketService;
         this.ticketFormatter = ticketFormatter;
         registerDefaultCommands();
+        log.info("TelegramBot registered {} command handlers", commands.size());
+    }
+
+    private static TicketService createDefaultTicketService(Connection conn) {
+        if (conn != null) {
+            return new TicketService(new ServerTicketRepository(conn), new ServerTicketSessionManager(conn));
+        }
+        return new TicketService(new InMemoryTicketRepository(), new InMemoryTicketSessionManager());
     }
 
     /**
@@ -98,30 +111,36 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update == null || !update.hasMessage() || !update.getMessage().hasText()) {
+            log.debug("Ignored update without text content");
             return;
         }
 
         long chatId = update.getMessage().getChatId();
         String text = update.getMessage().getText().trim();
+        log.info("Received update {} in chat {} from user {}", text, chatId, update.getMessage().getFrom().getId());
 
         long userId;
         try {
             userId = ensureUser(update);
         } catch (SQLException ex) {
             sendMessage(chatId, "[Error] Failed to resolve user: " + ex.getMessage());
+            log.error("Failed to resolve user for chat {}: {}", chatId, ex.getMessage(), ex);
             return;
         }
 
         if (text.startsWith("/")) {
+            log.debug("Dispatching command {}", text);
             handleCommand(update, userId);
             return;
         }
 
         if (ticketService != null && ticketService.hasActiveDraft(chatId, userId)) {
+            log.debug("Routing message to active ticket draft for user {}", userId);
             handleTicketDraftMessage(chatId, userId, text);
             return;
         }
 
+        log.debug("Handling general message for user {}", userId);
         handleGeneralMessage(update, userId);
     }
 
@@ -139,9 +158,11 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         if (handler == null) {
             sendMessage(chatId, "Unknown command: " + commandKey);
+            log.warn("User {} invoked unknown command {}", userId, commandKey);
             return;
         }
 
+        log.info("Executing command {} for user {}", handler.getName(), userId);
         handler.handle(update, this, userId);
     }
 
@@ -156,21 +177,26 @@ public class TelegramBot extends TelegramLongPollingBot {
         Optional<TicketDraft.Step> currentStep = ticketService.getActiveStep(chatId, userId);
         if (currentStep.isEmpty()) {
             sendMessage(chatId, ticketFormatter.formatError("No active ticket step found."));
+            log.warn("No active ticket step found for chat {}, user {}", chatId, userId);
             return;
         }
 
         try {
             Ticket ticket = ticketService.collectTicketField(chatId, userId, messageText);
+            log.info("Collected ticket field at step {} for ticket {}", currentStep.get(), ticket.getId());
             sendMessage(chatId, ticketFormatter.formatStepAcknowledgement(currentStep.get(), ticket));
 
             Optional<TicketDraft.Step> nextStep = ticketService.getActiveStep(chatId, userId);
             if (nextStep.isPresent()) {
+                log.debug("Next ticket step for ticket {} is {}", ticket.getId(), nextStep.get());
                 sendMessage(chatId, ticketFormatter.formatNextStepPrompt(nextStep.get()));
             } else {
+                log.info("Ticket {} creation complete", ticket.getId());
                 sendMessage(chatId, ticketFormatter.formatCreationComplete(ticket));
             }
         } catch (IllegalArgumentException | IllegalStateException ex) {
             sendMessage(chatId, ticketFormatter.formatError(ex.getMessage()));
+            log.error("Failed to collect ticket field for chat {}, user {}: {}", chatId, userId, ex.getMessage(), ex);
         }
     }
 
@@ -187,6 +213,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         try {
             String replyText = callChatGPT(userText);
+            log.info("ChatGPT responded to user {} with {} characters", userId, replyText.length());
 
             if (conn != null) {
                 PreparedStatement ps = conn.prepareStatement(
@@ -197,11 +224,13 @@ public class TelegramBot extends TelegramLongPollingBot {
                 ps.setString(4, replyText);
                 ps.executeUpdate();
                 ps.close();
+                log.debug("Persisted message for user {} in chat {}", userId, chatId);
             }
 
             sendMessage(chatId, replyText);
         } catch (Exception e) {
             sendMessage(chatId, "[Error] Failed to process message: " + e.getMessage());
+            log.error("Failed to handle general message for user {}: {}", userId, e.getMessage(), e);
         }
     }
 
@@ -214,6 +243,7 @@ public class TelegramBot extends TelegramLongPollingBot {
      */
     private long ensureUser(Update update) throws SQLException {
         if (conn == null) {
+            log.debug("Database connection unavailable; using telegram ID as user ID");
             return update.getMessage().getFrom().getId();
         }
 
@@ -227,6 +257,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             long userId = rs.getLong("id");
             rs.close();
             findUser.close();
+            log.debug("Resolved existing user {} for telegram {}", userId, telegramId);
             return userId;
         }
 
@@ -245,6 +276,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         long userId = newUser.getLong("id");
         newUser.close();
         insertUser.close();
+        log.info("Created new user {} for telegram {}", userId, telegramId);
         return userId;
     }
 
@@ -260,6 +292,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             execute(message);
         } catch (TelegramApiException e) {
             e.printStackTrace();
+            log.error("Failed to send message to chat {}: {}", chatId, e.getMessage(), e);
         }
     }
 
@@ -287,6 +320,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        log.debug("ChatGPT API responded with status {}", response.statusCode());
         return response.body();
     }
 }

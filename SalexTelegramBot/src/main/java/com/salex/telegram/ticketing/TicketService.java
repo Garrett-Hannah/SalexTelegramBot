@@ -1,5 +1,8 @@
 package com.salex.telegram.ticketing;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -9,6 +12,7 @@ import java.util.function.Function;
  * Coordinates validation, persistence and command messaging for tickets.
  */
 public class TicketService {
+    private static final Logger log = LoggerFactory.getLogger(TicketService.class);
     private final TicketRepository repository;
     private final TicketSessionManager sessionManager;
 
@@ -38,6 +42,7 @@ public class TicketService {
 
         sessionManager.openSession(chatId, userId);
         TicketDraft draft = new TicketDraft();
+        log.info("Opening ticket session for chat {}, user {}", chatId, userId);
 
         Instant now = Instant.now();
         Ticket ticketToPersist = Ticket.builder()
@@ -54,6 +59,7 @@ public class TicketService {
         Ticket persisted = repository.createDraftTicket(ticketToPersist);
         draft.setTicketId(persisted.getId());
         sessionManager.updateDraft(chatId, userId, draft);
+        log.info("Draft ticket {} persisted for user {}", persisted.getId(), userId);
 
         return persisted;
     }
@@ -94,6 +100,7 @@ public class TicketService {
                 sessionManager.updateDraft(chatId, userId, draft);
                 updatedTicket = repository.save(updateTicket(ticket, builder ->
                         builder.summary(sanitizedInput)));
+                log.debug("Recorded summary for ticket {}", ticket.getId());
             }
             case PRIORITY -> {
                 TicketPriority priority = parsePriority(sanitizedInput);
@@ -101,6 +108,7 @@ public class TicketService {
                 sessionManager.updateDraft(chatId, userId, draft);
                 updatedTicket = repository.save(updateTicket(ticket, builder ->
                         builder.priority(priority)));
+                log.debug("Recorded priority {} for ticket {}", priority, ticket.getId());
             }
             case DETAILS -> {
                 draft.put(TicketDraft.Step.DETAILS, sanitizedInput);
@@ -108,6 +116,7 @@ public class TicketService {
                 sessionManager.closeSession(chatId, userId);
                 updatedTicket = repository.save(updateTicket(ticket, builder ->
                         builder.details(sanitizedInput)));
+                log.info("Ticket {} details captured; session closed", ticket.getId());
             }
             default -> throw new IllegalStateException("Unhandled step: " + nextStep);
         }
@@ -158,6 +167,7 @@ public class TicketService {
         Ticket closedTicket = updateTicket(ticket, builder -> builder
                 .status(TicketStatus.CLOSED)
                 .details(appendResolution(ticket.getDetails(), resolutionNote)));
+        log.info("Ticket {} closed by user {}", ticketId, userId);
 
         return repository.save(closedTicket);
     }
@@ -275,8 +285,10 @@ public class TicketService {
         }
         String trimmed = resolutionNote.trim();
         if (details == null || details.isEmpty()) {
+            log.debug("Appending new resolution to ticket details");
             return "Resolution: " + trimmed;
         }
+        log.debug("Appending resolution note to existing ticket details");
         return details + System.lineSeparator() + System.lineSeparator() + "Resolution: " + trimmed;
     }
 }

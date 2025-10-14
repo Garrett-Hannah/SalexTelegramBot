@@ -5,6 +5,8 @@ import com.salex.telegram.commanding.CommandHandler;
 import com.salex.telegram.ticketing.Ticket;
 import com.salex.telegram.ticketing.TicketDraft;
 import com.salex.telegram.ticketing.TicketService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.List;
@@ -15,6 +17,7 @@ import java.util.Optional;
  * Dispatches ticket-related commands invoked from Telegram into service calls.
  */
 public class TicketCommandHandler implements CommandHandler {
+    private static final Logger log = LoggerFactory.getLogger(TicketCommandHandler.class);
     private final TicketService ticketService;
     private final TicketMessageFormatter formatter;
 
@@ -27,6 +30,7 @@ public class TicketCommandHandler implements CommandHandler {
     public TicketCommandHandler(TicketService ticketService, TicketMessageFormatter formatter) {
         this.ticketService = ticketService;
         this.formatter = formatter;
+        log.info("TicketCommandHandler initialised");
     }
 
     /**
@@ -60,6 +64,7 @@ public class TicketCommandHandler implements CommandHandler {
         String[] tokens = text.split("\\s+", 3);
         if (tokens.length == 1) {
             bot.sendMessage(chatId, formatter.formatHelp());
+            log.debug("Ticket help requested by user {}", userId);
             return;
         }
 
@@ -75,6 +80,7 @@ public class TicketCommandHandler implements CommandHandler {
             }
         } catch (IllegalArgumentException | IllegalStateException ex) {
             bot.sendMessage(chatId, formatter.formatError(ex.getMessage()));
+            log.error("Ticket command '{}' failed for user {}: {}", subCommand, userId, ex.getMessage(), ex);
         }
     }
 
@@ -87,6 +93,7 @@ public class TicketCommandHandler implements CommandHandler {
      */
     private void handleNewTicket(long chatId, long userId, TelegramBot bot) {
         Ticket ticket = ticketService.startTicketCreation(chatId, userId);
+        log.info("User {} started ticket workflow for ticket {}", userId, ticket.getId());
         bot.sendMessage(chatId, formatter.formatCreationPrompt(ticket));
         Optional<TicketDraft.Step> next = ticketService.getActiveStep(chatId, userId);
         next.ifPresent(step -> bot.sendMessage(chatId, formatter.formatNextStepPrompt(step)));
@@ -101,6 +108,7 @@ public class TicketCommandHandler implements CommandHandler {
      */
     private void handleListTickets(long chatId, long userId, TelegramBot bot) {
         List<Ticket> tickets = ticketService.listTicketsForUser(userId);
+        log.info("User {} requested ticket list ({} items)", userId, tickets.size());
         bot.sendMessage(chatId, formatter.formatTicketList(tickets));
     }
 
@@ -122,6 +130,7 @@ public class TicketCommandHandler implements CommandHandler {
         String resolution = params.length > 1 ? params[1] : "";
 
         Ticket closed = ticketService.closeTicket(ticketId, userId, resolution);
+        log.info("User {} closed ticket {}", userId, ticketId);
         bot.sendMessage(chatId, formatter.formatClosurePrompt(closed));
         bot.sendMessage(chatId, formatter.formatClosingConfirmation(closed));
     }
@@ -141,6 +150,7 @@ public class TicketCommandHandler implements CommandHandler {
                         ticket -> bot.sendMessage(chatId, formatter.formatTicketCard(ticket)),
                         () -> bot.sendMessage(chatId, formatter.formatNotFound(ticketId))
                 );
+        log.debug("User {} looked up ticket {}", userId, ticketId);
     }
 
     /**

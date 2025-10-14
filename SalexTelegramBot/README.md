@@ -28,6 +28,7 @@ Salex Telegram Bot is a Java 23 Telegram bot that combines a conversational assi
 - Conversations logged to PostgreSQL (`users`, `messages` tables) when a JDBC connection is provided.
 - Free-form user messages proxied to OpenAI's Chat Completions API.
 - In-memory ticket repository and session manager for local development with zero external dependencies.
+- Structured SLF4J/Logback logging for chronological event tracing and debugging insight.
 
 ---
 
@@ -85,6 +86,16 @@ CREATE TABLE IF NOT EXISTS messages (
     reply    TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS ticket_sessions (
+    chat_id   BIGINT NOT NULL,
+    user_id   BIGINT NOT NULL,
+    ticket_id BIGINT,
+    summary   TEXT,
+    priority  TEXT,
+    details   TEXT,
+    PRIMARY KEY (chat_id, user_id)
+);
 ```
 
 Run the DDL against the database pointed to by `JDBC_URL` before starting the bot.
@@ -136,10 +147,10 @@ Any message that does not begin with `/` is forwarded to the OpenAI Chat Complet
 ---
 
 ### Debugging & Troubleshooting
-- **Connectivity issues:** Confirm `BOT_TOKEN`, `BOT_USERNAME`, and network connectivity to Telegram servers. The bot prints `Bot started...` after successful registration.
+- **Connectivity issues:** Confirm `BOT_TOKEN`, `BOT_USERNAME`, and network connectivity to Telegram servers. A successful registration is logged at `INFO` level.
 - **Database errors:** Ensure the database is reachable and the schema above is applied. Any SQL exception is surfaced back to the user as an `[Error]` message.
 - **OpenAI failures:** Verify `OPENAI_API_KEY` and outbound network access to `api.openai.com`. Failures return `[Error] Failed to process message: ...` inside the chat.
-- **Verbose logging:** Add environment-driven conditionals (for example `DEBUG=true`) and sprinkle guarded `System.out.println` statements if deeper diagnostics are required—this avoids changing the public API surface.
+- **Structured logging:** SLF4J with Logback is configured (`src/main/resources/logback.xml`). Adjust levels or patterns there, or set `LOG_LEVEL_ROOT` at runtime to increase verbosity when diagnosing issues.
 
 ---
 

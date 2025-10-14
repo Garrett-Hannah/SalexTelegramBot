@@ -129,6 +129,20 @@ public final class Ticket {
         return new Builder();
     }
 
+    @Override
+    public String toString() {
+        return "Ticket{" +
+                "id=" + id +
+                ", status=" + status +
+                ", priority=" + priority +
+                ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
+                ", createdBy=" + createdBy +
+                ", assignee=" + assignee +
+                ", summary='" + summary + '\'' +
+                '}';
+    }
+
     public static final class Builder {
         private long id;
         private TicketStatus status;

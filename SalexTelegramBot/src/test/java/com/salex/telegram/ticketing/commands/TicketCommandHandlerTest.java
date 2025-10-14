@@ -105,7 +105,7 @@ class TicketCommandHandlerTest {
         private final List<LoggedMessage> messages = new ArrayList<>();
 
         TestTelegramBot(TicketService service, TicketMessageFormatter formatter) {
-            super("token", "debug-bot", null, service, formatter);
+            super("token", "debug-bot", , service, formatter);
         }
 
         @Override

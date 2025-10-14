@@ -1,5 +1,12 @@
 package com.salex.telegram.Bot;
 
+import com.salex.telegram.Transcription.OpenAIWhisperClient;
+import com.salex.telegram.Transcription.TelegramAudioDownloader;
+import com.salex.telegram.Transcription.TranscriptionException;
+import com.salex.telegram.Transcription.TranscriptionResult;
+import com.salex.telegram.Transcription.TranscriptionService;
+import com.salex.telegram.Transcription.commands.TranscriptionCommandHandler;
+import com.salex.telegram.Transcription.commands.TranscriptionMessageFormatter;
 import com.salex.telegram.commanding.CommandHandler;
 import com.salex.telegram.ticketing.InMemory.InMemoryTicketRepository;
 import com.salex.telegram.ticketing.InMemory.InMemoryTicketSessionManager;
@@ -14,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -41,6 +49,8 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final Connection conn;
     private final TicketService ticketService;
     private final TicketMessageFormatter ticketFormatter;
+    private final TranscriptionService transcriptionService;
+    private final TranscriptionMessageFormatter transcriptionFormatter;
     private final Map<String, CommandHandler> commands = new HashMap<>();
 
     /**
@@ -53,27 +63,40 @@ public class TelegramBot extends TelegramLongPollingBot {
     public TelegramBot(String token, String username, Connection conn) {
         this(token, username, conn,
                 createDefaultTicketService(conn),
-                new TicketMessageFormatter());
+                new TicketMessageFormatter(),
+                null,
+                null);
         log.info("TelegramBot initialised with {} ticket backend", conn != null ? "JDBC" : "in-memory");
     }
 
     /**
      * Creates a bot with explicit ticket service and formatter dependencies.
      *
-     * @param token           bot token provided by Telegram
-     * @param username        bot public username
-     * @param conn            JDBC connection used for persistence (may be {@code null})
-     * @param ticketService   service handling ticket lifecycle operations (may be {@code null} for disabled ticketing)
-     * @param ticketFormatter formatter used for rendering ticket messages (may be {@code null} for disabled ticketing)
+     * @param token                   bot token provided by Telegram
+     * @param username                bot public username
+     * @param conn                    JDBC connection used for persistence (may be {@code null})
+     * @param ticketService           service handling ticket lifecycle operations (may be {@code null} for disabled ticketing)
+     * @param ticketFormatter         formatter used for rendering ticket messages (may be {@code null} for disabled ticketing)
+     * @param transcriptionService    service used for transcribing audio messages (may be {@code null} to disable feature)
+     * @param transcriptionFormatter  formatter used for transcription responses (ignored when service is {@code null})
      */
     public TelegramBot(String token, String username, Connection conn,
                        TicketService ticketService,
-                       TicketMessageFormatter ticketFormatter) {
+                       TicketMessageFormatter ticketFormatter,
+                       TranscriptionService transcriptionService,
+                       TranscriptionMessageFormatter transcriptionFormatter) {
         super(token);
         this.username = username;
         this.conn = conn;
         this.ticketService = ticketService;
         this.ticketFormatter = ticketFormatter;
+        TranscriptionService resolvedTranscription = transcriptionService != null
+                ? transcriptionService
+                : createDefaultTranscriptionService();
+        this.transcriptionService = resolvedTranscription;
+        this.transcriptionFormatter = resolvedTranscription != null
+                ? (transcriptionFormatter != null ? transcriptionFormatter : new TranscriptionMessageFormatter())
+                : null;
         registerDefaultCommands();
         log.info("TelegramBot registered {} command handlers", commands.size());
     }
@@ -85,12 +108,26 @@ public class TelegramBot extends TelegramLongPollingBot {
         return new TicketService(new InMemoryTicketRepository(), new InMemoryTicketSessionManager());
     }
 
+    private TranscriptionService createDefaultTranscriptionService() {
+        String apiKey = System.getenv("OPENAI_API_KEY");
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("OPENAI_API_KEY not provided; transcription features disabled.");
+            return null;
+        }
+        HttpClient client = HttpClient.newHttpClient();
+        OpenAIWhisperClient whisperClient = new OpenAIWhisperClient(client, apiKey, System.getenv("WHISPER_MODEL"));
+        return new TranscriptionService(new TelegramAudioDownloader(this), whisperClient);
+    }
+
     /**
      * Initialises the default command handlers supported by the bot instance.
      */
     private void registerDefaultCommands() {
         if (ticketService != null && ticketFormatter != null) {
             commands.put("/ticket", new TicketCommandHandler(ticketService, ticketFormatter));
+        }
+        if (transcriptionService != null && transcriptionFormatter != null) {
+            commands.put("/transcribe", new TranscriptionCommandHandler(transcriptionService, transcriptionFormatter));
         }
         commands.put("/menu", new MenuCommandHandler(commands));
     }
@@ -110,14 +147,26 @@ public class TelegramBot extends TelegramLongPollingBot {
      */
     @Override
     public void onUpdateReceived(Update update) {
-        if (update == null || !update.hasMessage() || !update.getMessage().hasText()) {
-            log.debug("Ignored update without text content");
+        if (update == null || !update.hasMessage()) {
+            log.debug("Ignored update without message content");
             return;
         }
 
-        long chatId = update.getMessage().getChatId();
-        String text = update.getMessage().getText().trim();
-        log.info("Received update {} in chat {} from user {}", text, chatId, update.getMessage().getFrom().getId());
+        Message message = update.getMessage();
+        long chatId = message.getChatId();
+        long telegramUserId = message.getFrom() != null ? message.getFrom().getId() : -1L;
+        String text = message.hasText() ? message.getText().trim() : "";
+        boolean hasAudio = hasAudioContent(message);
+
+        if (text.isEmpty() && !hasAudio) {
+            log.debug("Ignored update without text or audio content in chat {}", chatId);
+            return;
+        }
+
+        log.info("Received update{} in chat {} from user {}",
+                text.isEmpty() ? "" : (" \"" + text + "\""),
+                chatId,
+                telegramUserId);
 
         long userId;
         try {
@@ -128,9 +177,15 @@ public class TelegramBot extends TelegramLongPollingBot {
             return;
         }
 
-        if (text.startsWith("/")) {
+        if (!text.isEmpty() && text.startsWith("/")) {
             log.debug("Dispatching command {}", text);
             handleCommand(update, userId);
+            return;
+        }
+
+        if (hasAudio) {
+            log.debug("Handling audio message for user {}", userId);
+            handleAudioMessage(message, chatId, userId);
             return;
         }
 
@@ -142,6 +197,26 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         log.debug("Handling general message for user {}", userId);
         handleGeneralMessage(update, userId);
+    }
+
+    private boolean hasAudioContent(Message message) {
+        return message != null && (message.hasVoice() || message.hasAudio() || message.hasVideoNote());
+    }
+
+    private void handleAudioMessage(Message message, long chatId, long userId) {
+        if (transcriptionService == null || transcriptionFormatter == null) {
+            log.info("Transcription requested by user {} but service is disabled", userId);
+            sendMessage(chatId, "Audio transcription is currently unavailable.");
+            return;
+        }
+
+        try {
+            TranscriptionResult result = transcriptionService.transcribe(message);
+            sendMessage(chatId, transcriptionFormatter.formatResult(result));
+        } catch (TranscriptionException ex) {
+            log.error("Failed to transcribe audio for user {}: {}", userId, ex.getMessage(), ex);
+            sendMessage(chatId, transcriptionFormatter.formatError(ex.getMessage()));
+        }
     }
 
     /**

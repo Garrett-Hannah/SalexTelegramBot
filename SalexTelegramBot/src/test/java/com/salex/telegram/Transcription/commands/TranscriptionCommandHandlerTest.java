@@ -1,5 +1,6 @@
 package com.salex.telegram.Transcription.commands;
 
+import com.salex.telegram.Bot.SalexTelegramBot;
 import com.salex.telegram.Transcription.AudioResource;
 import com.salex.telegram.Transcription.TranscriptionResult;
 import com.salex.telegram.Transcription.TranscriptionService;
@@ -21,7 +22,7 @@ class TranscriptionCommandHandlerTest {
         TranscriptionResult expected = new TranscriptionResult("Hello world", "mock", 1);
         TranscriptionService service = new TranscriptionService(downloader, audio -> expected);
         TranscriptionMessageFormatter formatter = new TranscriptionMessageFormatter();
-        RecordingBot bot = new RecordingBot(service, formatter);
+        RecordingBotSalex bot = new RecordingBotSalex(service, formatter);
         TranscriptionCommandHandler handler = new TranscriptionCommandHandler(service, formatter);
 
         Update update = buildUpdateWithCommand("/transcribe", buildVoiceMessage());
@@ -37,7 +38,7 @@ class TranscriptionCommandHandlerTest {
         StubDownloader downloader = new StubDownloader();
         TranscriptionService service = new TranscriptionService(downloader, audio -> null);
         TranscriptionMessageFormatter formatter = new TranscriptionMessageFormatter();
-        RecordingBot bot = new RecordingBot(service, formatter);
+        RecordingBotSalex bot = new RecordingBotSalex(service, formatter);
         TranscriptionCommandHandler handler = new TranscriptionCommandHandler(service, formatter);
 
         Update update = buildUpdateWithCommand("/transcribe", new Message());
@@ -72,10 +73,10 @@ class TranscriptionCommandHandlerTest {
         return message;
     }
 
-    private static class RecordingBot extends com.salex.telegram.Bot.TelegramBot {
+    private static class RecordingBotSalex extends SalexTelegramBot {
         private final List<String> sentMessages = new ArrayList<>();
 
-        RecordingBot(TranscriptionService service, TranscriptionMessageFormatter formatter) {
+        RecordingBotSalex(TranscriptionService service, TranscriptionMessageFormatter formatter) {
             super("token", "bot", null, null, null, service, formatter);
         }
 

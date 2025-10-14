@@ -1,4 +1,4 @@
-import com.salex.telegram.Bot.TelegramBot;
+import com.salex.telegram.Bot.SalexTelegramBot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
@@ -36,7 +36,7 @@ public class Main {
         }
 
         TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-        botsApi.registerBot(new TelegramBot(token, username, conn));
+        botsApi.registerBot(new SalexTelegramBot(token, username, conn));
         log.info("Bot started using username {}", username);
     }
 }

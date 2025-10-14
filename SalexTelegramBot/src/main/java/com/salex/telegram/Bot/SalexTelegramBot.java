@@ -42,8 +42,8 @@ import java.util.Optional;
  * Telegram bot implementation that dispatches commands, manages ticket workflows,
  * and forwards free-form messages to a language model.
  */
-public class TelegramBot extends TelegramLongPollingBot {
-    private static final Logger log = LoggerFactory.getLogger(TelegramBot.class);
+public class SalexTelegramBot extends TelegramLongPollingBot {
+    private static final Logger log = LoggerFactory.getLogger(SalexTelegramBot.class);
 
     private final String username;
     private final Connection conn;
@@ -60,7 +60,7 @@ public class TelegramBot extends TelegramLongPollingBot {
      * @param username bot public username
      * @param conn     JDBC connection used for persistence (may be {@code null} for in-memory usage)
      */
-    public TelegramBot(String token, String username, Connection conn) {
+    public SalexTelegramBot(String token, String username, Connection conn) {
         this(token, username, conn,
                 createDefaultTicketService(conn),
                 new TicketMessageFormatter(),
@@ -80,11 +80,11 @@ public class TelegramBot extends TelegramLongPollingBot {
      * @param transcriptionService    service used for transcribing audio messages (may be {@code null} to disable feature)
      * @param transcriptionFormatter  formatter used for transcription responses (ignored when service is {@code null})
      */
-    public TelegramBot(String token, String username, Connection conn,
-                       TicketService ticketService,
-                       TicketMessageFormatter ticketFormatter,
-                       TranscriptionService transcriptionService,
-                       TranscriptionMessageFormatter transcriptionFormatter) {
+    public SalexTelegramBot(String token, String username, Connection conn,
+                            TicketService ticketService,
+                            TicketMessageFormatter ticketFormatter,
+                            TranscriptionService transcriptionService,
+                            TranscriptionMessageFormatter transcriptionFormatter) {
         super(token);
         this.username = username;
         this.conn = conn;

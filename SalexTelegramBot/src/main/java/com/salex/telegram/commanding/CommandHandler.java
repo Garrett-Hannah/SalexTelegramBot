@@ -1,6 +1,6 @@
 package com.salex.telegram.commanding;
 
-import com.salex.telegram.Bot.TelegramBot;
+import com.salex.telegram.Bot.SalexTelegramBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 /**
@@ -28,5 +28,5 @@ public interface CommandHandler {
      * @param bot    the bot instance used for responses
      * @param userId the internal user identifier resolved for the update
      */
-    void handle(Update update, TelegramBot bot, long userId);
+    void handle(Update update, SalexTelegramBot bot, long userId);
 }

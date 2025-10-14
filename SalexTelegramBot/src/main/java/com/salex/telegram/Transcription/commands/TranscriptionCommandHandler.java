@@ -1,6 +1,6 @@
 package com.salex.telegram.Transcription.commands;
 
-import com.salex.telegram.Bot.TelegramBot;
+import com.salex.telegram.Bot.SalexTelegramBot;
 import com.salex.telegram.Transcription.TranscriptionException;
 import com.salex.telegram.Transcription.TranscriptionResult;
 import com.salex.telegram.Transcription.TranscriptionService;
@@ -37,7 +37,7 @@ public class TranscriptionCommandHandler implements CommandHandler {
     }
 
     @Override
-    public void handle(Update update, TelegramBot bot, long userId) {
+    public void handle(Update update, SalexTelegramBot bot, long userId) {
         if (update == null || !update.hasMessage()) {
             return;
         }

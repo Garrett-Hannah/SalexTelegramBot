@@ -1,5 +1,6 @@
 package com.salex.telegram.Transcription;
 
+import com.salex.telegram.Transcoding.AudioTranscoder;
 import org.telegram.telegrambots.meta.api.objects.Message;
 
 import java.util.Objects;
@@ -41,7 +42,8 @@ public class TranscriptionService {
             throw new TranscriptionException("Message does not include transcribable audio.");
         }
 
-        AudioResource audioResource = audioDownloader.download(message);
-        return transcriptionClient.transcribe(audioResource);
+        AudioResource downloaded = audioDownloader.download(message);
+        AudioResource prepared = new AudioTranscoder(downloaded).toMono16kWav();
+        return transcriptionClient.transcribe(prepared);
     }
 }

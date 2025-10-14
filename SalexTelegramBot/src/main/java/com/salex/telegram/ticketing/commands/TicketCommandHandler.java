@@ -1,6 +1,6 @@
 package com.salex.telegram.ticketing.commands;
 
-import com.salex.telegram.Bot.TelegramBot;
+import com.salex.telegram.Bot.SalexTelegramBot;
 import com.salex.telegram.commanding.CommandHandler;
 import com.salex.telegram.ticketing.Ticket;
 import com.salex.telegram.ticketing.TicketDraft;
@@ -53,7 +53,7 @@ public class TicketCommandHandler implements CommandHandler {
      * {@inheritDoc}
      */
     @Override
-    public void handle(Update update, TelegramBot bot, long userId) {
+    public void handle(Update update, SalexTelegramBot bot, long userId) {
         if (!update.hasMessage() || !update.getMessage().hasText()) {
             return;
         }
@@ -91,7 +91,7 @@ public class TicketCommandHandler implements CommandHandler {
      * @param userId internal user identifier
      * @param bot    bot instance used to send replies
      */
-    private void handleNewTicket(long chatId, long userId, TelegramBot bot) {
+    private void handleNewTicket(long chatId, long userId, SalexTelegramBot bot) {
         Ticket ticket = ticketService.startTicketCreation(chatId, userId);
         log.info("User {} started ticket workflow for ticket {}", userId, ticket.getId());
         bot.sendMessage(chatId, formatter.formatCreationPrompt(ticket));
@@ -106,7 +106,7 @@ public class TicketCommandHandler implements CommandHandler {
      * @param userId internal user identifier
      * @param bot    bot instance used to send replies
      */
-    private void handleListTickets(long chatId, long userId, TelegramBot bot) {
+    private void handleListTickets(long chatId, long userId, SalexTelegramBot bot) {
         List<Ticket> tickets = ticketService.listTicketsForUser(userId);
         log.info("User {} requested ticket list ({} items)", userId, tickets.size());
         bot.sendMessage(chatId, formatter.formatTicketList(tickets));
@@ -120,7 +120,7 @@ public class TicketCommandHandler implements CommandHandler {
      * @param userId internal user identifier
      * @param bot    bot instance used to send replies
      */
-    private void handleCloseTicket(String[] tokens, long chatId, long userId, TelegramBot bot) {
+    private void handleCloseTicket(String[] tokens, long chatId, long userId, SalexTelegramBot bot) {
         if (tokens.length < 3) {
             throw new IllegalArgumentException("Provide the ticket id and a resolution note.");
         }
@@ -143,7 +143,7 @@ public class TicketCommandHandler implements CommandHandler {
      * @param userId internal user identifier
      * @param bot    bot instance used to send replies
      */
-    private void handleTicketLookup(String[] tokens, long chatId, long userId, TelegramBot bot) {
+    private void handleTicketLookup(String[] tokens, long chatId, long userId, SalexTelegramBot bot) {
         long ticketId = parseTicketId(tokens[1]);
         ticketService.getTicket(ticketId, userId)
                 .ifPresentOrElse(

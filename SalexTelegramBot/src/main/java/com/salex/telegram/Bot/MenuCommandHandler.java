@@ -40,7 +40,7 @@ public class MenuCommandHandler implements CommandHandler {
      * {@inheritDoc}
      */
     @Override
-    public void handle(Update update, TelegramBot bot, long userId) {
+    public void handle(Update update, SalexTelegramBot bot, long userId) {
         if (!update.hasMessage() || !update.getMessage().hasText()) {
             return;
         }

@@ -1,6 +1,6 @@
 package com.salex.telegram.ticketing.commands;
 
-import com.salex.telegram.Bot.TelegramBot;
+import com.salex.telegram.Bot.SalexTelegramBot;
 import com.salex.telegram.ticketing.InMemory.InMemoryTicketRepository;
 import com.salex.telegram.ticketing.InMemory.InMemoryTicketSessionManager;
 import com.salex.telegram.ticketing.Ticket;
@@ -25,7 +25,7 @@ class TicketCommandHandlerTest {
 
     @Test
     void handleNewTicketStartsWorkflow() {
-        TestTelegramBot bot = new TestTelegramBot(service, formatter);
+        TestSalexTelegramBot bot = new TestSalexTelegramBot(service, formatter);
         Update update = buildUpdate(1L, 100L, "/ticket new");
 
         handler.handle(update, bot, 100L);
@@ -44,7 +44,7 @@ class TicketCommandHandlerTest {
         service.collectTicketField(chatId, userId, "high");
         service.collectTicketField(chatId, userId, "Details");
 
-        TestTelegramBot bot = new TestTelegramBot(service, formatter);
+        TestSalexTelegramBot bot = new TestSalexTelegramBot(service, formatter);
         handler.handle(buildUpdate(chatId, userId, "/ticket " + ticket.getId()), bot, userId);
 
         assertThat(bot.messages).hasSize(1);
@@ -60,7 +60,7 @@ class TicketCommandHandlerTest {
         service.collectTicketField(chatId, userId, "low");
         service.collectTicketField(chatId, userId, "Details");
 
-        TestTelegramBot bot = new TestTelegramBot(service, formatter);
+        TestSalexTelegramBot bot = new TestSalexTelegramBot(service, formatter);
         handler.handle(buildUpdate(chatId, userId, "/ticket list"), bot, userId);
 
         assertThat(bot.messages).hasSize(1);
@@ -76,7 +76,7 @@ class TicketCommandHandlerTest {
         service.collectTicketField(chatId, userId, "urgent");
         service.collectTicketField(chatId, userId, "Details");
 
-        TestTelegramBot bot = new TestTelegramBot(service, formatter);
+        TestSalexTelegramBot bot = new TestSalexTelegramBot(service, formatter);
         handler.handle(buildUpdate(chatId, userId, "/ticket close " + ticket.getId() + " Patched"), bot, userId);
 
         assertThat(bot.messages).hasSize(2);
@@ -101,10 +101,10 @@ class TicketCommandHandlerTest {
         return update;
     }
 
-    private static final class TestTelegramBot extends TelegramBot {
+    private static final class TestSalexTelegramBot extends SalexTelegramBot {
         private final List<LoggedMessage> messages = new ArrayList<>();
 
-        TestTelegramBot(TicketService service, TicketMessageFormatter formatter) {
+        TestSalexTelegramBot(TicketService service, TicketMessageFormatter formatter) {
             super("token", "debug-bot", , service, formatter);
         }
 

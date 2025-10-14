@@ -1,11 +1,10 @@
 package com.salex.telegram.ticketing.commands;
 
 import com.salex.telegram.Bot.TelegramBot;
-import com.salex.telegram.ticketing.InMemoryTicketRepository;
-import com.salex.telegram.ticketing.InMemoryTicketSessionManager;
+import com.salex.telegram.ticketing.InMemory.InMemoryTicketRepository;
+import com.salex.telegram.ticketing.InMemory.InMemoryTicketSessionManager;
 import com.salex.telegram.ticketing.Ticket;
 import com.salex.telegram.ticketing.TicketService;
-import com.salex.telegram.ticketing.TicketStatus;
 import org.junit.jupiter.api.Test;
 
 import org.telegram.telegrambots.meta.api.objects.Chat;
@@ -106,7 +105,7 @@ class TicketCommandHandlerTest {
         private final List<LoggedMessage> messages = new ArrayList<>();
 
         TestTelegramBot(TicketService service, TicketMessageFormatter formatter) {
-            super("token", "debug-bot", null, service, formatter);
+            super("token", "debug-bot", , service, formatter);
         }
 
         @Override

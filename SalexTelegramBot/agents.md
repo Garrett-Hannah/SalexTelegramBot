@@ -10,6 +10,12 @@
 2. Apply the schemas for `users`, `messages`, and `ticket_sessions` (see README).
 3. Provide credentials through the environment variables described in the README.
 
+## Database Schema Snapshot
+- `users`: `id`, `telegram_id`, `username`, `first_name`, `last_name`, `created_at` (timestamp without time zone).
+- `messages`: `id`, `user_id`, `chat_id`, `text`, `reply`, `created_at` (timestamp without time zone).
+- `ticket_sessions`: `chat_id`, `user_id`, `ticket_id`, `summary`, `priority`, `details`.
+- `tickets`: `id`, `status`, `priority`, `created_at`, `updated_at` (timestamps with time zone), `created_by`, `assignee`, `summary`, `details`.
+
 ## Useful JVM Entrypoint
 - Main class: `Main` in `src/main/java/Main.java`.
 - Classpath launch pattern: `java -cp target/telegram-bot-demo-1.0-SNAPSHOT.jar:target/dependency/* Main`.

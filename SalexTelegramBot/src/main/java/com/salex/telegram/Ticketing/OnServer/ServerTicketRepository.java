@@ -1,9 +1,9 @@
-package com.salex.telegram.ticketing.OnServer;
+package com.salex.telegram.Ticketing.OnServer;
 
-import com.salex.telegram.ticketing.Ticket;
-import com.salex.telegram.ticketing.TicketPriority;
-import com.salex.telegram.ticketing.TicketRepository;
-import com.salex.telegram.ticketing.TicketStatus;
+import com.salex.telegram.Ticketing.Ticket;
+import com.salex.telegram.Ticketing.TicketPriority;
+import com.salex.telegram.Ticketing.TicketRepository;
+import com.salex.telegram.Ticketing.TicketStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

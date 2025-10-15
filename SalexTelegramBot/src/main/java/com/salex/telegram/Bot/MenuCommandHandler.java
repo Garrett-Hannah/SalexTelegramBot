@@ -1,6 +1,6 @@
 package com.salex.telegram.Bot;
 
-import com.salex.telegram.commanding.CommandHandler;
+import com.salex.telegram.Commanding.CommandHandler;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.Map;

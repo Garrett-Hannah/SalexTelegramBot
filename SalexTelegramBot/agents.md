@@ -1,8 +1,8 @@
 # Agents Notes
 
 ## Ticket Storage Backends
-- `com.salex.telegram.ticketing.InMemory.*` remains the default for quick local runs without PostgreSQL.
-- `com.salex.telegram.ticketing.OnServer.ServerTicketRepository` and `ServerTicketSessionManager` require an active JDBC `Connection` and the tables listed in the README (`users`, `messages`, `ticket_sessions`, plus `tickets`).
+- `com.salex.telegram.Ticketing.InMemory.*` remains the default for quick local runs without PostgreSQL.
+- `com.salex.telegram.Ticketing.OnServer.ServerTicketRepository` and `ServerTicketSessionManager` require an active JDBC `Connection` and the tables listed in the README (`users`, `messages`, `ticket_sessions`, plus `tickets`).
 - When wiring new services, choose the repository/session manager pair based on whether a connection is present.
 
 ## Database Checklist

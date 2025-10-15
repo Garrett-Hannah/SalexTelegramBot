@@ -35,9 +35,9 @@ Salex Telegram Bot is a Java 23 Telegram bot that combines a conversational assi
 ### Architecture
 - **Main** (`Main.java`) bootstraps the Telegram bot using environment-provided secrets and obtains the JDBC connection.
 - **Bot Layer** (`com.salex.telegram.Bot`) extends `TelegramLongPollingBot`, dispatches incoming updates, and orchestrates command handlers and ticket workflows.
-- **Commanding** (`com.salex.telegram.commanding`) defines the `CommandHandler` contract implemented by menu and ticket handlers.
-- **Ticketing Domain** (`com.salex.telegram.ticketing`) models tickets, priorities, statuses, repositories, and the `TicketService` that manages draft lifecycle and persistence.
-- **Formatting** (`com.salex.telegram.ticketing.commands.TicketMessageFormatter`) centralises Telegram-friendly message templates for consistency.
+- **Commanding** (`com.salex.telegram.Commanding`) defines the `CommandHandler` contract implemented by menu and ticket handlers.
+- **Ticketing Domain** (`com.salex.telegram.Ticketing`) models tickets, priorities, statuses, repositories, and the `TicketService` that manages draft lifecycle and persistence.
+- **Formatting** (`com.salex.telegram.Ticketing.commands.TicketMessageFormatter`) centralises Telegram-friendly message templates for consistency.
 
 ---
 

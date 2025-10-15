@@ -1,7 +1,7 @@
-package com.salex.telegram.ticketing.InMemory;
+package com.salex.telegram.Ticketing.InMemory;
 
-import com.salex.telegram.ticketing.Ticket;
-import com.salex.telegram.ticketing.TicketRepository;
+import com.salex.telegram.Ticketing.Ticket;
+import com.salex.telegram.Ticketing.TicketRepository;
 
 import java.util.Comparator;
 import java.util.List;

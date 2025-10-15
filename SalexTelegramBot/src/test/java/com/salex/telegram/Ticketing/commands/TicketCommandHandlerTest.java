@@ -1,10 +1,10 @@
-package com.salex.telegram.ticketing.commands;
+package com.salex.telegram.Ticketing.commands;
 
 import com.salex.telegram.Bot.SalexTelegramBot;
-import com.salex.telegram.ticketing.InMemory.InMemoryTicketRepository;
-import com.salex.telegram.ticketing.InMemory.InMemoryTicketSessionManager;
-import com.salex.telegram.ticketing.Ticket;
-import com.salex.telegram.ticketing.TicketService;
+import com.salex.telegram.Ticketing.InMemory.InMemoryTicketRepository;
+import com.salex.telegram.Ticketing.InMemory.InMemoryTicketSessionManager;
+import com.salex.telegram.Ticketing.Ticket;
+import com.salex.telegram.Ticketing.TicketService;
 import org.junit.jupiter.api.Test;
 
 import org.telegram.telegrambots.meta.api.objects.Chat;
@@ -84,7 +84,7 @@ class TicketCommandHandlerTest {
         assertThat(service.getTicket(ticket.getId(), userId)).isPresent()
                 .get()
                 .extracting(Ticket::getStatus)
-                .isEqualTo(com.salex.telegram.ticketing.TicketStatus.CLOSED);
+                .isEqualTo(com.salex.telegram.Ticketing.TicketStatus.CLOSED);
     }
 
     private Update buildUpdate(long chatId, long userId, String text) {

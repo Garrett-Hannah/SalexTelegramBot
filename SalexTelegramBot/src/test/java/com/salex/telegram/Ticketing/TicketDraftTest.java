@@ -1,6 +1,6 @@
-package com.salex.telegram.ticketing;
+package com.salex.telegram.Ticketing;
 
-import com.salex.telegram.ticketing.TicketDraft.Step;
+import com.salex.telegram.Ticketing.TicketDraft.Step;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

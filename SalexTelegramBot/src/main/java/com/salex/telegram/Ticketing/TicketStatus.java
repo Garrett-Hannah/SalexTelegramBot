@@ -1,4 +1,4 @@
-package com.salex.telegram.ticketing;
+package com.salex.telegram.Ticketing;
 
 /**
  * Lifecycle markers for a ticket. Expand as new states emerge.

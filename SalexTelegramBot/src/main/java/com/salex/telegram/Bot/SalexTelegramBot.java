@@ -3,6 +3,7 @@ package com.salex.telegram.Bot;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.salex.telegram.Ticketing.TicketHandler;
 import com.salex.telegram.Transcription.OpenAIWhisperClient;
 import com.salex.telegram.Transcription.TelegramAudioDownloader;
 import com.salex.telegram.Transcription.TranscriptionException;
@@ -10,16 +11,16 @@ import com.salex.telegram.Transcription.TranscriptionResult;
 import com.salex.telegram.Transcription.TranscriptionService;
 import com.salex.telegram.Transcription.commands.TranscriptionCommandHandler;
 import com.salex.telegram.Transcription.commands.TranscriptionMessageFormatter;
-import com.salex.telegram.commanding.CommandHandler;
-import com.salex.telegram.ticketing.InMemory.InMemoryTicketRepository;
-import com.salex.telegram.ticketing.InMemory.InMemoryTicketSessionManager;
-import com.salex.telegram.ticketing.OnServer.ServerTicketRepository;
-import com.salex.telegram.ticketing.OnServer.ServerTicketSessionManager;
-import com.salex.telegram.ticketing.Ticket;
-import com.salex.telegram.ticketing.TicketDraft;
-import com.salex.telegram.ticketing.TicketService;
-import com.salex.telegram.ticketing.commands.TicketCommandHandler;
-import com.salex.telegram.ticketing.commands.TicketMessageFormatter;
+import com.salex.telegram.Commanding.CommandHandler;
+import com.salex.telegram.Ticketing.InMemory.InMemoryTicketRepository;
+import com.salex.telegram.Ticketing.InMemory.InMemoryTicketSessionManager;
+import com.salex.telegram.Ticketing.OnServer.ServerTicketRepository;
+import com.salex.telegram.Ticketing.OnServer.ServerTicketSessionManager;
+import com.salex.telegram.Ticketing.Ticket;
+import com.salex.telegram.Ticketing.TicketDraft;
+import com.salex.telegram.Ticketing.TicketService;
+import com.salex.telegram.Ticketing.commands.TicketCommandHandler;
+import com.salex.telegram.Ticketing.commands.TicketMessageFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -50,8 +51,8 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
 
     private final String username;
     private final Connection conn;
-    private final TicketService ticketService;
-    private final TicketMessageFormatter ticketFormatter;
+
+    private final TicketHandler ticketHandler;
     private final TranscriptionService transcriptionService;
     private final TranscriptionMessageFormatter transcriptionFormatter;
     private final Map<String, CommandHandler> commands = new HashMap<>();
@@ -91,6 +92,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         super(token);
         this.username = username;
         this.conn = conn;
+        this.ticketHandler =
         this.ticketService = ticketService;
         this.ticketFormatter = ticketFormatter;
         TranscriptionService resolvedTranscription = transcriptionService != null
@@ -260,6 +262,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         }
 
         try {
+            //This step takes in the ticket and collects the field.
             Ticket ticket = ticketService.collectTicketField(chatId, userId, messageText);
             log.info("Collected ticket field at step {} for ticket {}", currentStep.get(), ticket.getId());
             sendMessage(chatId, ticketFormatter.formatStepAcknowledgement(currentStep.get(), ticket));
@@ -413,4 +416,6 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
 
         return content; // just the assistant reply
     }
+
+    public static class B
 }

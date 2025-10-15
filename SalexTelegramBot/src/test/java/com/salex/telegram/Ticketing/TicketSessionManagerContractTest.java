@@ -1,4 +1,4 @@
-package com.salex.telegram.ticketing;
+package com.salex.telegram.Ticketing;
 
 import org.junit.jupiter.api.Test;
 
@@ -8,23 +8,20 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class TicketRepositoryContractTest {
+class TicketSessionManagerContractTest {
 
     @Test
-    void repositoryIsInterfaceWithExpectedMethods() {
-        assertThat(TicketRepository.class).isInterface();
+    void sessionManagerDefinesLifecycleOperations() {
+        assertThat(TicketSessionManager.class).isInterface();
 
-        Map<String, Class<?>[]> signatures = collectSignatures(TicketRepository.class);
+        Map<String, Class<?>[]> signatures = collectSignatures(TicketSessionManager.class);
 
         assertThat(signatures).containsKeys(
-                "createDraftTicket",
-                "findById",
-                "findAllForUser",
-                "save"
+                "openSession",
+                "getDraft",
+                "updateDraft",
+                "closeSession"
         );
-
-        assertThat(signatures.get("findById"))
-                .containsExactly(long.class);
     }
 
     private Map<String, Class<?>[]> collectSignatures(Class<?> type) {

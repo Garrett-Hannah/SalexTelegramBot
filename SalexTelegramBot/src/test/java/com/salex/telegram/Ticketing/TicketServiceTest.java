@@ -1,7 +1,7 @@
-package com.salex.telegram.ticketing;
+package com.salex.telegram.Ticketing;
 
-import com.salex.telegram.ticketing.InMemory.InMemoryTicketRepository;
-import com.salex.telegram.ticketing.InMemory.InMemoryTicketSessionManager;
+import com.salex.telegram.Ticketing.InMemory.InMemoryTicketRepository;
+import com.salex.telegram.Ticketing.InMemory.InMemoryTicketSessionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

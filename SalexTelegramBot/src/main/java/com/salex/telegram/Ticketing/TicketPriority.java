@@ -1,4 +1,4 @@
-package com.salex.telegram.ticketing;
+package com.salex.telegram.Ticketing;
 
 /**
  * Priority levels for handling response expectations.

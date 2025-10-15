@@ -1,4 +1,4 @@
-package com.salex.telegram.ticketing;
+package com.salex.telegram.Ticketing;
 
 import java.util.EnumMap;
 import java.util.Map;

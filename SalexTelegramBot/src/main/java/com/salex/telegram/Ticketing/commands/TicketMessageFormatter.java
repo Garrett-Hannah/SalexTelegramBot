@@ -1,7 +1,7 @@
-package com.salex.telegram.ticketing.commands;
+package com.salex.telegram.Ticketing.commands;
 
-import com.salex.telegram.ticketing.Ticket;
-import com.salex.telegram.ticketing.TicketDraft;
+import com.salex.telegram.Ticketing.Ticket;
+import com.salex.telegram.Ticketing.TicketDraft;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;

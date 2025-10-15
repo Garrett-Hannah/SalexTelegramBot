@@ -1,7 +1,7 @@
-package com.salex.telegram.ticketing.InMemory;
+package com.salex.telegram.Ticketing.InMemory;
 
-import com.salex.telegram.ticketing.TicketDraft;
-import com.salex.telegram.ticketing.TicketSessionManager;
+import com.salex.telegram.Ticketing.TicketDraft;
+import com.salex.telegram.Ticketing.TicketSessionManager;
 
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;

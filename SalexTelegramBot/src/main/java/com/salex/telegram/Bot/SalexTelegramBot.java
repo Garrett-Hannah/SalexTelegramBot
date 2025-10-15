@@ -11,6 +11,11 @@ import com.salex.telegram.Transcription.TranscriptionResult;
 import com.salex.telegram.Transcription.TranscriptionService;
 import com.salex.telegram.Transcription.commands.TranscriptionCommandHandler;
 import com.salex.telegram.Transcription.commands.TranscriptionMessageFormatter;
+import com.salex.telegram.Messaging.JdbcMessageRepository;
+import com.salex.telegram.Messaging.LoggedMessage;
+import com.salex.telegram.Messaging.MessagePersistenceException;
+import com.salex.telegram.Messaging.MessageRepository;
+import com.salex.telegram.Messaging.NoopMessageRepository;
 import com.salex.telegram.Ticketing.InMemory.InMemoryTicketRepository;
 import com.salex.telegram.Ticketing.InMemory.InMemoryTicketSessionManager;
 import com.salex.telegram.Ticketing.OnServer.ServerTicketRepository;
@@ -51,6 +56,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     private final Connection conn;
     private final TicketService ticketService;
     private final TicketMessageFormatter ticketFormatter;
+    private final MessageRepository messageRepository;
 
     private final TicketHandler ticketHandler;
     private final TranscriptionService transcriptionService;
@@ -71,6 +77,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                 createDefaultTicketService(conn),
                 new TicketMessageFormatter(),
                 null,
+                null,
                 null);
         log.info("TelegramBot initialised with {} ticket backend", conn != null ? "JDBC" : "in-memory");
     }
@@ -90,12 +97,16 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                             TicketService ticketService,
                             TicketMessageFormatter ticketFormatter,
                             TranscriptionService transcriptionService,
-                            TranscriptionMessageFormatter transcriptionFormatter) {
+                            TranscriptionMessageFormatter transcriptionFormatter,
+                            MessageRepository messageRepository) {
         super(token);
         this.username = username;
         this.conn = conn;
         this.ticketService = ticketService;
         this.ticketFormatter = ticketFormatter;
+        this.messageRepository = messageRepository != null
+                ? messageRepository
+                : createDefaultMessageRepository(conn);
         this.ticketHandler = ticketService != null && ticketFormatter != null
                 ? new TicketHandler(ticketService, ticketFormatter)
                 : null;
@@ -106,9 +117,12 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         this.transcriptionFormatter = resolvedTranscription != null
                 ? (transcriptionFormatter != null ? transcriptionFormatter : new TranscriptionMessageFormatter())
                 : null;
-        this.genericBotModule = GenericBotModule()
+
+        this.genericBotModule = new GenericBotModule(this.messageRepository);//[Removal MARK], should this be new or should I implement as diff funciton.
         registerDefaultCommands();
+
         log.info("TelegramBot registered {} command handlers", commands.size());
+        //TODO: set up modules so that itll also note how many modules there are.
     }
 
     private static TicketService createDefaultTicketService(Connection conn) {
@@ -116,6 +130,13 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
             return new TicketService(new ServerTicketRepository(conn), new ServerTicketSessionManager(conn));
         }
         return new TicketService(new InMemoryTicketRepository(), new InMemoryTicketSessionManager());
+    }
+
+    private MessageRepository createDefaultMessageRepository(Connection conn) {
+        if (conn != null) {
+            return new JdbcMessageRepository(conn);
+        }
+        return new NoopMessageRepository();
     }
 
     private TranscriptionService createDefaultTranscriptionService() {
@@ -295,7 +316,26 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      * @param userId the resolved internal user identifier
      */
     private void handleGeneralMessage(Update update, long userId) {
+        String userText = update.getMessage().getText();
+        long chatId = update.getMessage().getChatId();
 
+        try {
+            String replyText = callChatGPT(userText);
+            log.info("ChatGPT responded to user {} with {} characters", userId, replyText.length());
+
+            try {
+                if(messageRepository == null)
+                    log.error("WARNING REPO IS NULL. ");
+                messageRepository.save(new LoggedMessage(userId, chatId, userText, replyText));
+            } catch (MessagePersistenceException ex) {
+                log.warn("Failed to persist message for user {} in chat {}: {}", userId, chatId, ex.getMessage(), ex);
+            }
+
+            sendMessage(chatId, replyText);
+        } catch (Exception e) {
+            sendMessage(chatId, "[Error] Failed to process message: " + e.getMessage());
+            log.error("Failed to handle general message for user {}: {}", userId, e.getMessage(), e);
+        }
     }
 
     /**
@@ -372,7 +412,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      * @return the raw response payload returned by the API
      * @throws Exception if the HTTP request fails or the client cannot be created
      */
-    private String callChatGPT(String prompt) throws Exception {
+    public String callChatGPT(String prompt) throws Exception {
         HttpClient client = HttpClient.newHttpClient();
         String body = """
         {
@@ -455,6 +495,20 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                 : new TranscriptionMessageFormatter())
                 : null;
 
+        MessageRepository resolvedMessageRepository;
+        if (builder.messageLoggingEnabled) {
+            if (builder.messageRepositorySet && builder.messageRepository != null) {
+                resolvedMessageRepository = builder.messageRepository;
+            } else {
+                resolvedMessageRepository = createDefaultMessageRepository(conn);
+            }
+        } else {
+            resolvedMessageRepository = new NoopMessageRepository();
+        }
+        this.messageRepository = resolvedMessageRepository;
+
+        this.genericBotModule = new GenericBotModule(this.messageRepository);
+
         registerDefaultCommands();
         log.info("TelegramBot registered {} command handlers", commands.size());
     }
@@ -467,14 +521,19 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         private TicketMessageFormatter ticketFormatter;
         private TranscriptionService transcriptionService;
         private TranscriptionMessageFormatter transcriptionFormatter;
+        private MessageRepository messageRepository;
+
+        private GenericBotModule genericBotModule;
 
         private boolean ticketServiceSet;
         private boolean ticketFormatterSet;
         private boolean transcriptionServiceSet;
         private boolean transcriptionFormatterSet;
+        private boolean messageRepositorySet;
 
         private boolean ticketingEnabled = true;
         private boolean transcriptionEnabled = true;
+        private boolean messageLoggingEnabled = true;
 
         private Builder() {
         }
@@ -515,6 +574,17 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         public Builder transcriptionFormatter(TranscriptionMessageFormatter transcriptionFormatter) {
             this.transcriptionFormatter = transcriptionFormatter;
             this.transcriptionFormatterSet = true;
+            return this;
+        }
+
+        public Builder messageRepository(MessageRepository messageRepository) {
+            this.messageRepository = messageRepository;
+            this.messageRepositorySet = true;
+            return this;
+        }
+
+        public Builder disableMessageLogging() {
+            this.messageLoggingEnabled = false;
             return this;
         }
 

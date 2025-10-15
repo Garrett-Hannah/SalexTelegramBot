@@ -11,7 +11,6 @@ import com.salex.telegram.Transcription.TranscriptionResult;
 import com.salex.telegram.Transcription.TranscriptionService;
 import com.salex.telegram.Transcription.commands.TranscriptionCommandHandler;
 import com.salex.telegram.Transcription.commands.TranscriptionMessageFormatter;
-import com.salex.telegram.Commanding.CommandHandler;
 import com.salex.telegram.Ticketing.InMemory.InMemoryTicketRepository;
 import com.salex.telegram.Ticketing.InMemory.InMemoryTicketSessionManager;
 import com.salex.telegram.Ticketing.OnServer.ServerTicketRepository;
@@ -48,15 +47,18 @@ import java.util.Optional;
  */
 public class SalexTelegramBot extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(SalexTelegramBot.class);
-
     private final String username;
     private final Connection conn;
+    private final TicketService ticketService;
+    private final TicketMessageFormatter ticketFormatter;
 
     private final TicketHandler ticketHandler;
     private final TranscriptionService transcriptionService;
     private final TranscriptionMessageFormatter transcriptionFormatter;
     private final Map<String, CommandHandler> commands = new HashMap<>();
 
+    //TODO: Turn modules into a list and work via that.
+    private final GenericBotModule genericBotModule;
     /**
      * Creates a bot that uses in-memory ticket backing services for lightweight deployments.
      *
@@ -92,9 +94,11 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         super(token);
         this.username = username;
         this.conn = conn;
-        this.ticketHandler =
         this.ticketService = ticketService;
         this.ticketFormatter = ticketFormatter;
+        this.ticketHandler = ticketService != null && ticketFormatter != null
+                ? new TicketHandler(ticketService, ticketFormatter)
+                : null;
         TranscriptionService resolvedTranscription = transcriptionService != null
                 ? transcriptionService
                 : createDefaultTranscriptionService();
@@ -102,6 +106,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         this.transcriptionFormatter = resolvedTranscription != null
                 ? (transcriptionFormatter != null ? transcriptionFormatter : new TranscriptionMessageFormatter())
                 : null;
+        this.genericBotModule = GenericBotModule()
         registerDefaultCommands();
         log.info("TelegramBot registered {} command handlers", commands.size());
     }
@@ -201,7 +206,9 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         }
 
         log.debug("Handling general message for user {}", userId);
-        handleGeneralMessage(update, userId);
+        if(genericBotModule != null && genericBotModule.canHandle(update)) {
+            genericBotModule.handle(update, this, userId);
+        }
     }
 
     private boolean hasAudioContent(Message message) {
@@ -288,31 +295,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      * @param userId the resolved internal user identifier
      */
     private void handleGeneralMessage(Update update, long userId) {
-        String userText = update.getMessage().getText();
-        long chatId = update.getMessage().getChatId();
-        long telegramId = update.getMessage().getFrom().getId();
 
-        try {
-            String replyText = callChatGPT(userText);
-            log.info("ChatGPT responded to user {} with {} characters", userId, replyText.length());
-
-            if (conn != null) {
-                PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO messages (user_id, chat_id, text, reply) VALUES (?,?,?,?)");
-                ps.setLong(1, userId);
-                ps.setLong(2, chatId);
-                ps.setString(3, userText);
-                ps.setString(4, replyText);
-                ps.executeUpdate();
-                ps.close();
-                log.debug("Persisted message for user {} in chat {}", userId, chatId);
-            }
-
-            sendMessage(chatId, replyText);
-        } catch (Exception e) {
-            sendMessage(chatId, "[Error] Failed to process message: " + e.getMessage());
-            log.error("Failed to handle general message for user {}: {}", userId, e.getMessage(), e);
-        }
     }
 
     /**
@@ -417,5 +400,150 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         return content; // just the assistant reply
     }
 
-    public static class B
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    private SalexTelegramBot(Builder builder) {
+        super(builder.token);
+        this.username = builder.username;
+        this.conn = builder.connection;
+
+        TicketService resolvedTicketService;
+        if (builder.ticketingEnabled) {
+            if (builder.ticketServiceSet) {
+                resolvedTicketService = builder.ticketService;
+            } else {
+                resolvedTicketService = createDefaultTicketService(conn);
+            }
+        } else {
+            resolvedTicketService = null;
+        }
+        this.ticketService = resolvedTicketService;
+
+        TicketMessageFormatter resolvedTicketFormatter;
+        if (resolvedTicketService != null) {
+            if (builder.ticketFormatterSet) {
+                resolvedTicketFormatter = builder.ticketFormatter;
+            } else {
+                resolvedTicketFormatter = new TicketMessageFormatter();
+            }
+        } else if (builder.ticketFormatterSet) {
+            resolvedTicketFormatter = builder.ticketFormatter;
+        } else {
+            resolvedTicketFormatter = null;
+        }
+        this.ticketFormatter = resolvedTicketFormatter;
+        this.ticketHandler = resolvedTicketService != null && resolvedTicketFormatter != null
+                ? new TicketHandler(resolvedTicketService, resolvedTicketFormatter)
+                : null;
+
+        TranscriptionService resolvedTranscription;
+        if (builder.transcriptionEnabled) {
+            if (builder.transcriptionServiceSet) {
+                resolvedTranscription = builder.transcriptionService;
+            } else {
+                resolvedTranscription = createDefaultTranscriptionService();
+            }
+        } else {
+            resolvedTranscription = null;
+        }
+        this.transcriptionService = resolvedTranscription;
+        this.transcriptionFormatter = resolvedTranscription != null
+                ? (builder.transcriptionFormatterSet
+                ? builder.transcriptionFormatter
+                : new TranscriptionMessageFormatter())
+                : null;
+
+        registerDefaultCommands();
+        log.info("TelegramBot registered {} command handlers", commands.size());
+    }
+
+    public static final class Builder {
+        private String token;
+        private String username;
+        private Connection connection;
+        private TicketService ticketService;
+        private TicketMessageFormatter ticketFormatter;
+        private TranscriptionService transcriptionService;
+        private TranscriptionMessageFormatter transcriptionFormatter;
+
+        private boolean ticketServiceSet;
+        private boolean ticketFormatterSet;
+        private boolean transcriptionServiceSet;
+        private boolean transcriptionFormatterSet;
+
+        private boolean ticketingEnabled = true;
+        private boolean transcriptionEnabled = true;
+
+        private Builder() {
+        }
+
+        public Builder token(String token) {
+            this.token = token;
+            return this;
+        }
+
+        public Builder username(String username) {
+            this.username = username;
+            return this;
+        }
+
+        public Builder connection(Connection connection) {
+            this.connection = connection;
+            return this;
+        }
+
+        public Builder ticketService(TicketService ticketService) {
+            this.ticketService = ticketService;
+            this.ticketServiceSet = true;
+            return this;
+        }
+
+        public Builder ticketFormatter(TicketMessageFormatter ticketFormatter) {
+            this.ticketFormatter = ticketFormatter;
+            this.ticketFormatterSet = true;
+            return this;
+        }
+
+        public Builder transcriptionService(TranscriptionService transcriptionService) {
+            this.transcriptionService = transcriptionService;
+            this.transcriptionServiceSet = true;
+            return this;
+        }
+
+        public Builder transcriptionFormatter(TranscriptionMessageFormatter transcriptionFormatter) {
+            this.transcriptionFormatter = transcriptionFormatter;
+            this.transcriptionFormatterSet = true;
+            return this;
+        }
+
+        public Builder disableTicketing() {
+            this.ticketingEnabled = false;
+            this.ticketService = null;
+            this.ticketServiceSet = true;
+            this.ticketFormatter = null;
+            this.ticketFormatterSet = true;
+            return this;
+        }
+
+        public Builder disableTranscription() {
+            this.transcriptionEnabled = false;
+            this.transcriptionService = null;
+            this.transcriptionServiceSet = true;
+            this.transcriptionFormatter = null;
+            this.transcriptionFormatterSet = true;
+            return this;
+        }
+
+        public SalexTelegramBot build() {
+            if (token == null || token.isBlank()) {
+                throw new IllegalStateException("Bot token must be provided");
+            }
+            if (username == null || username.isBlank()) {
+                throw new IllegalStateException("Bot username must be provided");
+            }
+            return new SalexTelegramBot(this);
+        }
+    }
 }

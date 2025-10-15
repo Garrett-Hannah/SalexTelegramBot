@@ -1,7 +1,7 @@
 package com.salex.telegram.Ticketing.commands;
 
 import com.salex.telegram.Bot.SalexTelegramBot;
-import com.salex.telegram.Commanding.CommandHandler;
+import com.salex.telegram.Bot.CommandHandler;
 import com.salex.telegram.Ticketing.Ticket;
 import com.salex.telegram.Ticketing.TicketDraft;
 import com.salex.telegram.Ticketing.TicketService;

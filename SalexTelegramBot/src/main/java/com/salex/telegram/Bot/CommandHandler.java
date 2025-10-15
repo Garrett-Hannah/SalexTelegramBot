@@ -1,6 +1,5 @@
-package com.salex.telegram.Commanding;
+package com.salex.telegram.Bot;
 
-import com.salex.telegram.Bot.SalexTelegramBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 /**

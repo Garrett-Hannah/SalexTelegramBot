@@ -1,6 +1,5 @@
 package com.salex.telegram.Transcoding;
 
-import com.salex.telegram.Transcription.AudioResource;
 import com.salex.telegram.Transcription.TranscriptionException;
 import org.bytedeco.ffmpeg.ffmpeg;
 import org.bytedeco.javacpp.Loader;

@@ -3,6 +3,7 @@ package com.salex.telegram.Transcription;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.salex.telegram.Transcoding.AudioResource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

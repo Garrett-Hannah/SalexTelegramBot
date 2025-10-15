@@ -1,5 +1,7 @@
 package com.salex.telegram.Transcription;
 
+import com.salex.telegram.Transcoding.AudioResource;
+
 /**
  * Contract for services capable of converting audio payloads into text.
  */

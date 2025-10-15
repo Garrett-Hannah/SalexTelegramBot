@@ -1,5 +1,8 @@
 package com.salex.telegram.Bot;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.salex.telegram.Transcription.OpenAIWhisperClient;
 import com.salex.telegram.Transcription.TelegramAudioDownloader;
 import com.salex.telegram.Transcription.TranscriptionException;
@@ -371,6 +374,11 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         }
     }
 
+
+    /**TODO: Change this so that chat queries are returned as a type of object.
+     *
+     */
+
     /**
      * Calls the configured OpenAI chat completion endpoint with the supplied prompt.
      *
@@ -396,6 +404,13 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         log.debug("ChatGPT API responded with status {}", response.statusCode());
-        return response.body();
+
+        // parse with Gson //TODO: make this into something easier to handle responses.
+        JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
+        JsonArray choices = root.getAsJsonArray("choices");
+        JsonObject message = choices.get(0).getAsJsonObject().getAsJsonObject("message");
+        String content = message.get("content").getAsString();
+
+        return content; // just the assistant reply
     }
 }

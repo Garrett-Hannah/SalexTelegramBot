@@ -1,5 +1,6 @@
 package com.salex.telegram.Transcription;
 
+import com.salex.telegram.Transcoding.AudioResource;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.objects.Audio;

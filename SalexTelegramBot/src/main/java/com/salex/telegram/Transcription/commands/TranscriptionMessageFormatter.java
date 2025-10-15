@@ -15,7 +15,7 @@ public class TranscriptionMessageFormatter {
 
     public String formatResult(TranscriptionResult result) {
         return """
-                ✏️ Transcription (%s)
+                Noted Transcription: (%s)
 
                 %s
                 """.formatted(result.model(), result.text().isEmpty() ? "[No speech detected]" : result.text()).trim();

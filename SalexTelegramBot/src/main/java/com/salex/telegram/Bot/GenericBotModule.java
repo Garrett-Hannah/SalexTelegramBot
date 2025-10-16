@@ -31,17 +31,20 @@ public class GenericBotModule implements TelegramBotModule{
     public void handle (Update update, SalexTelegramBot bot, long userId) {
         String userText = update.getMessage().getText();
         long chatId = update.getMessage().getChatId();
+        Integer threadId = update.getMessage().getMessageThreadId();
         long telegramId = update.getMessage().getFrom().getId();
 
         try {
+            bot.sendChatTyping(chatId, threadId);
             String replyText = bot.callChatGPT(userText); //TODO: Reimplement a way for this. shouldnt be public.
             log.info("ChatGPT responded to user {} with {} characters", userId, replyText.length());
+
             LoggedMessage loggedMessage =
                     new LoggedMessage(userId, chatId, userText, replyText);
             messageRepository.save(loggedMessage);
-            bot.sendMessage(chatId, replyText);
+            bot.sendMessage(chatId, threadId, replyText);
         } catch (Exception e) {
-            bot.sendMessage(chatId, "[Error] Failed to process message: " + e.getMessage());
+            bot.sendMessage(chatId, threadId, "[Error] Failed to process message: " + e.getMessage());
             log.error("Failed to handle general message for user {}: {}", userId, e.getMessage(), e);
         }
     }

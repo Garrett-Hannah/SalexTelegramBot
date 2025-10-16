@@ -44,20 +44,21 @@ public class TranscriptionCommandHandler implements CommandHandler {
 
         Message message = update.getMessage();
         long chatId = message.getChatId();
+        Integer threadId = message.getMessageThreadId();
         Message target = message.getReplyToMessage() != null ? message.getReplyToMessage() : message;
 
         if (!transcriptionService.supports(target)) {
-            bot.sendMessage(chatId, formatter.formatUsage());
+            bot.sendMessage(chatId, threadId, formatter.formatUsage());
             log.debug("User {} invoked transcription without audio payload", userId);
             return;
         }
 
         try {
             TranscriptionResult result = transcriptionService.transcribe(target);
-            bot.sendMessage(chatId, formatter.formatResult(result));
+            bot.sendMessage(chatId, threadId, formatter.formatResult(result));
             log.info("Delivered transcription to user {}", userId);
         } catch (TranscriptionException ex) {
-            bot.sendMessage(chatId, formatter.formatError(ex.getMessage()));
+            bot.sendMessage(chatId, threadId, formatter.formatError(ex.getMessage()));
             log.error("Transcription failed for user {}: {}", userId, ex.getMessage(), ex);
         }
     }

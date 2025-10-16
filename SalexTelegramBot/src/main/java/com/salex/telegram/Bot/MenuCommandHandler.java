@@ -45,6 +45,7 @@ public class MenuCommandHandler implements CommandHandler {
         }
 
         long chatId = update.getMessage().getChatId();
+        Integer threadId = update.getMessage().getMessageThreadId();
         StringBuilder builder = new StringBuilder("Available commands:\n");
         commandHandlers.values().stream()
                 .filter(handler -> handler != this)
@@ -53,6 +54,6 @@ public class MenuCommandHandler implements CommandHandler {
                         .append(handler.getDescription())
                         .append(System.lineSeparator()));
 
-        bot.sendMessage(chatId, builder.toString().trim());
+        bot.sendMessage(chatId, threadId, builder.toString().trim());
     }
 }

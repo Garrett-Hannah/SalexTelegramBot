@@ -28,6 +28,8 @@ import com.salex.telegram.Ticketing.commands.TicketMessageFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.ActionType;
+import org.telegram.telegrambots.meta.api.methods.send.SendChatAction;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -186,6 +188,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         Message message = update.getMessage();
         long chatId = message.getChatId();
         long telegramUserId = message.getFrom() != null ? message.getFrom().getId() : -1L;
+        Integer threadId = message.getMessageThreadId();
         String text = message.hasText() ? message.getText().trim() : "";
         boolean hasAudio = hasAudioContent(message);
 
@@ -203,7 +206,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         try {
             userId = ensureUser(update);
         } catch (SQLException ex) {
-            sendMessage(chatId, "[Error] Failed to resolve user: " + ex.getMessage());
+            sendMessage(chatId, threadId, "[Error] Failed to resolve user: " + ex.getMessage());
             log.error("Failed to resolve user for chat {}: {}", chatId, ex.getMessage(), ex);
             return;
         }
@@ -222,7 +225,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
 
         if (ticketService != null && ticketService.hasActiveDraft(chatId, userId)) {
             log.debug("Routing message to active ticket draft for user {}", userId);
-            handleTicketDraftMessage(chatId, userId, text);
+            handleTicketDraftMessage(chatId, threadId, userId, text);
             return;
         }
 
@@ -237,18 +240,19 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     }
 
     private void handleAudioMessage(Message message, long chatId, long userId) {
+        Integer threadId = message.getMessageThreadId();
         if (transcriptionService == null || transcriptionFormatter == null) {
             log.info("Transcription requested by user {} but service is disabled", userId);
-            sendMessage(chatId, "Audio transcription is currently unavailable.");
+            sendMessage(chatId, threadId, "Audio transcription is currently unavailable.");
             return;
         }
 
         try {
             TranscriptionResult result = transcriptionService.transcribe(message);
-            sendMessage(chatId, transcriptionFormatter.formatResult(result));
+            sendMessage(chatId, threadId, transcriptionFormatter.formatResult(result));
         } catch (TranscriptionException ex) {
             log.error("Failed to transcribe audio for user {}: {}", userId, ex.getMessage(), ex);
-            sendMessage(chatId, transcriptionFormatter.formatError(ex.getMessage()));
+            sendMessage(chatId, threadId, transcriptionFormatter.formatError(ex.getMessage()));
         }
     }
 
@@ -263,9 +267,10 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         String commandKey = commandText.split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
         CommandHandler handler = commands.get(commandKey);
         long chatId = update.getMessage().getChatId();
+        Integer threadId = update.getMessage().getMessageThreadId();
 
         if (handler == null) {
-            sendMessage(chatId, "Unknown command: " + commandKey);
+            sendMessage(chatId, threadId, "Unknown command: " + commandKey);
             log.warn("User {} invoked unknown command {}", userId, commandKey);
             return;
         }
@@ -281,10 +286,10 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      * @param userId      the internal user identifier
      * @param messageText the latest message supplied by the user
      */
-    private void handleTicketDraftMessage(long chatId, long userId, String messageText) {
+    private void handleTicketDraftMessage(long chatId, Integer threadId, long userId, String messageText) {
         Optional<TicketDraft.Step> currentStep = ticketService.getActiveStep(chatId, userId);
         if (currentStep.isEmpty()) {
-            sendMessage(chatId, ticketFormatter.formatError("No active ticket step found."));
+            sendMessage(chatId, threadId, ticketFormatter.formatError("No active ticket step found."));
             log.warn("No active ticket step found for chat {}, user {}", chatId, userId);
             return;
         }
@@ -293,18 +298,18 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
             //This step takes in the ticket and collects the field.
             Ticket ticket = ticketService.collectTicketField(chatId, userId, messageText);
             log.info("Collected ticket field at step {} for ticket {}", currentStep.get(), ticket.getId());
-            sendMessage(chatId, ticketFormatter.formatStepAcknowledgement(currentStep.get(), ticket));
+            sendMessage(chatId, threadId, ticketFormatter.formatStepAcknowledgement(currentStep.get(), ticket));
 
             Optional<TicketDraft.Step> nextStep = ticketService.getActiveStep(chatId, userId);
             if (nextStep.isPresent()) {
                 log.debug("Next ticket step for ticket {} is {}", ticket.getId(), nextStep.get());
-                sendMessage(chatId, ticketFormatter.formatNextStepPrompt(nextStep.get()));
+                sendMessage(chatId, threadId, ticketFormatter.formatNextStepPrompt(nextStep.get()));
             } else {
                 log.info("Ticket {} creation complete", ticket.getId());
-                sendMessage(chatId, ticketFormatter.formatCreationComplete(ticket));
+                sendMessage(chatId, threadId, ticketFormatter.formatCreationComplete(ticket));
             }
         } catch (IllegalArgumentException | IllegalStateException ex) {
-            sendMessage(chatId, ticketFormatter.formatError(ex.getMessage()));
+            sendMessage(chatId, threadId, ticketFormatter.formatError(ex.getMessage()));
             log.error("Failed to collect ticket field for chat {}, user {}: {}", chatId, userId, ex.getMessage(), ex);
         }
     }
@@ -318,22 +323,21 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     private void handleGeneralMessage(Update update, long userId) {
         String userText = update.getMessage().getText();
         long chatId = update.getMessage().getChatId();
+        Integer threadId = update.getMessage().getMessageThreadId();
 
         try {
             String replyText = callChatGPT(userText);
             log.info("ChatGPT responded to user {} with {} characters", userId, replyText.length());
 
             try {
-                if(messageRepository == null)
-                    log.error("WARNING REPO IS NULL. ");
                 messageRepository.save(new LoggedMessage(userId, chatId, userText, replyText));
             } catch (MessagePersistenceException ex) {
                 log.warn("Failed to persist message for user {} in chat {}: {}", userId, chatId, ex.getMessage(), ex);
             }
 
-            sendMessage(chatId, replyText);
+            sendMessage(chatId, threadId, replyText);
         } catch (Exception e) {
-            sendMessage(chatId, "[Error] Failed to process message: " + e.getMessage());
+            sendMessage(chatId, threadId, "[Error] Failed to process message: " + e.getMessage());
             log.error("Failed to handle general message for user {}: {}", userId, e.getMessage(), e);
         }
     }
@@ -391,13 +395,40 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      * @param text   message body to send
      */
     public void sendMessage(long chatId, String text) {
+        sendMessage(chatId, null, text);
+    }
+
+    public void sendMessage(long chatId, Integer threadId, String text) {
         SendMessage message = new SendMessage(Long.toString(chatId), text);
+        if (threadId != null) {
+            message.setMessageThreadId(threadId);
+        }
         try {
             execute(message);
         } catch (TelegramApiException e) {
             e.printStackTrace();
             log.error("Failed to send message to chat {}: {}", chatId, e.getMessage(), e);
         }
+    }
+
+    public void sendChatTyping(long chatId, Integer threadId) {
+        SendChatAction action = new SendChatAction();
+        action.setChatId(Long.toString(chatId));
+        action.setAction(ActionType.TYPING);
+        if (threadId != null) {
+            action.setMessageThreadId(threadId);
+        }
+        try {
+            execute(action);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+            log.error("Failed to send action to chat {}: {}", chatId, e.getMessage(), e);
+        }
+        log.info("Outputting Typing action in chat");
+    }
+
+    public void sendChatTyping(long chatId) {
+        sendChatTyping(chatId, null);
     }
 
 
@@ -414,18 +445,23 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      */
     public String callChatGPT(String prompt) throws Exception {
         HttpClient client = HttpClient.newHttpClient();
-        String body = """
-        {
-          "model": "gpt-4o-mini",
-          "messages": [{"role":"user","content":"%s"}]
-        }
-        """.formatted(prompt);
+        String safePrompt = prompt != null ? prompt : "";
+
+        JsonObject payload = new JsonObject();
+        payload.addProperty("model", "gpt-4o-mini");
+
+        JsonArray messages = new JsonArray();
+        JsonObject userMessage = new JsonObject();
+        userMessage.addProperty("role", "user");
+        userMessage.addProperty("content", safePrompt);
+        messages.add(userMessage);
+        payload.add("messages", messages);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.openai.com/v1/chat/completions"))
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + System.getenv("OPENAI_API_KEY"))
-                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());

@@ -59,11 +59,12 @@ public class TicketCommandHandler implements CommandHandler {
         }
 
         long chatId = update.getMessage().getChatId();
+        Integer threadId = update.getMessage().getMessageThreadId();
         String text = update.getMessage().getText().trim();
 
         String[] tokens = text.split("\\s+", 3);
         if (tokens.length == 1) {
-            bot.sendMessage(chatId, formatter.formatHelp());
+            bot.sendMessage(chatId, threadId, formatter.formatHelp());
             log.debug("Ticket help requested by user {}", userId);
             return;
         }
@@ -72,14 +73,14 @@ public class TicketCommandHandler implements CommandHandler {
 
         try {
             switch (subCommand) {
-                case "new" -> handleNewTicket(chatId, userId, bot);
-                case "list" -> handleListTickets(chatId, userId, bot);
-                case "close" -> handleCloseTicket(tokens, chatId, userId, bot);
-                case "help" -> bot.sendMessage(chatId, formatter.formatHelp());
-                default -> handleTicketLookup(tokens, chatId, userId, bot);
+                case "new" -> handleNewTicket(chatId, threadId, userId, bot);
+                case "list" -> handleListTickets(chatId, threadId, userId, bot);
+                case "close" -> handleCloseTicket(tokens, chatId, threadId, userId, bot);
+                case "help" -> bot.sendMessage(chatId, threadId, formatter.formatHelp());
+                default -> handleTicketLookup(tokens, chatId, threadId, userId, bot);
             }
         } catch (IllegalArgumentException | IllegalStateException ex) {
-            bot.sendMessage(chatId, formatter.formatError(ex.getMessage()));
+            bot.sendMessage(chatId, threadId, formatter.formatError(ex.getMessage()));
             log.error("Ticket command '{}' failed for user {}: {}", subCommand, userId, ex.getMessage(), ex);
         }
     }
@@ -91,12 +92,12 @@ public class TicketCommandHandler implements CommandHandler {
      * @param userId internal user identifier
      * @param bot    bot instance used to send replies
      */
-    private void handleNewTicket(long chatId, long userId, SalexTelegramBot bot) {
+    private void handleNewTicket(long chatId, Integer threadId, long userId, SalexTelegramBot bot) {
         Ticket ticket = ticketService.startTicketCreation(chatId, userId);
         log.info("User {} started ticket workflow for ticket {}", userId, ticket.getId());
-        bot.sendMessage(chatId, formatter.formatCreationPrompt(ticket));
+        bot.sendMessage(chatId, threadId, formatter.formatCreationPrompt(ticket));
         Optional<TicketDraft.Step> next = ticketService.getActiveStep(chatId, userId);
-        next.ifPresent(step -> bot.sendMessage(chatId, formatter.formatNextStepPrompt(step)));
+        next.ifPresent(step -> bot.sendMessage(chatId, threadId, formatter.formatNextStepPrompt(step)));
     }
 
     /**
@@ -106,10 +107,10 @@ public class TicketCommandHandler implements CommandHandler {
      * @param userId internal user identifier
      * @param bot    bot instance used to send replies
      */
-    private void handleListTickets(long chatId, long userId, SalexTelegramBot bot) {
+    private void handleListTickets(long chatId, Integer threadId, long userId, SalexTelegramBot bot) {
         List<Ticket> tickets = ticketService.listTicketsForUser(userId);
         log.info("User {} requested ticket list ({} items)", userId, tickets.size());
-        bot.sendMessage(chatId, formatter.formatTicketList(tickets));
+        bot.sendMessage(chatId, threadId, formatter.formatTicketList(tickets));
     }
 
     /**
@@ -120,7 +121,7 @@ public class TicketCommandHandler implements CommandHandler {
      * @param userId internal user identifier
      * @param bot    bot instance used to send replies
      */
-    private void handleCloseTicket(String[] tokens, long chatId, long userId, SalexTelegramBot bot) {
+    private void handleCloseTicket(String[] tokens, long chatId, Integer threadId, long userId, SalexTelegramBot bot) {
         if (tokens.length < 3) {
             throw new IllegalArgumentException("Provide the ticket id and a resolution note.");
         }
@@ -131,8 +132,8 @@ public class TicketCommandHandler implements CommandHandler {
 
         Ticket closed = ticketService.closeTicket(ticketId, userId, resolution);
         log.info("User {} closed ticket {}", userId, ticketId);
-        bot.sendMessage(chatId, formatter.formatClosurePrompt(closed));
-        bot.sendMessage(chatId, formatter.formatClosingConfirmation(closed));
+        bot.sendMessage(chatId, threadId, formatter.formatClosurePrompt(closed));
+        bot.sendMessage(chatId, threadId, formatter.formatClosingConfirmation(closed));
     }
 
     /**
@@ -143,12 +144,12 @@ public class TicketCommandHandler implements CommandHandler {
      * @param userId internal user identifier
      * @param bot    bot instance used to send replies
      */
-    private void handleTicketLookup(String[] tokens, long chatId, long userId, SalexTelegramBot bot) {
+    private void handleTicketLookup(String[] tokens, long chatId, Integer threadId, long userId, SalexTelegramBot bot) {
         long ticketId = parseTicketId(tokens[1]);
         ticketService.getTicket(ticketId, userId)
                 .ifPresentOrElse(
-                        ticket -> bot.sendMessage(chatId, formatter.formatTicketCard(ticket)),
-                        () -> bot.sendMessage(chatId, formatter.formatNotFound(ticketId))
+                        ticket -> bot.sendMessage(chatId, threadId, formatter.formatTicketCard(ticket)),
+                        () -> bot.sendMessage(chatId, threadId, formatter.formatNotFound(ticketId))
                 );
         log.debug("User {} looked up ticket {}", userId, ticketId);
     }

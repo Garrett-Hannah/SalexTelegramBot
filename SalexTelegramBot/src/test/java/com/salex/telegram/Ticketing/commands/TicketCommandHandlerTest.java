@@ -109,7 +109,7 @@ class TicketCommandHandlerTest {
         }
 
         @Override
-        protected void sendMessage(long chatId, String text) {
+        public void sendMessage (long chatId, String text) {
             messages.add(new LoggedMessage(chatId, text));
         }
     }

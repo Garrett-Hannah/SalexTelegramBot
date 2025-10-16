@@ -173,6 +173,8 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         return username;
     }
 
+    //TODO: question, would it be beneficial to make this also into its own almost class. Should the bot just be like 30 different things that
+    //Essetnailly just orhcestrates the interaction? This is for another time. 
     /**
      * Routes incoming Telegram updates to the appropriate command or conversational handler.
      *
@@ -342,6 +344,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    //TODO: this likely should and could be refactored into a subclass, of course this would make some things easier.
     /**
      * Ensures that the Telegram user has a corresponding database record, creating one if necessary.
      *

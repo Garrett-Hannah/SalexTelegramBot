@@ -1,9 +1,11 @@
 import com.salex.telegram.Bot.SalexTelegramBot;
+import com.salex.telegram.Database.ConnectionFactory;
+import com.salex.telegram.Database.RefreshingConnectionProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
-import java.sql.Connection;
+
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
@@ -23,20 +25,29 @@ public class Main {
         String token = System.getenv("BOT_TOKEN");
         String username = System.getenv("BOT_USERNAME");
 
-        Connection conn = null;
-        try {
-            conn = DriverManager.getConnection(
-                    System.getenv("JDBC_URL"),
+        RefreshingConnectionProvider connectionProvider = null;
+        String jdbcUrl = System.getenv("JDBC_URL");
+        if (jdbcUrl == null || jdbcUrl.isBlank()) {
+            log.warn("JDBC_URL not provided; bot will run with in-memory storage");
+        } else {
+            ConnectionFactory factory = () -> DriverManager.getConnection(
+                    jdbcUrl,
                     System.getenv("DB_USER"),
                     System.getenv("DB_PASS")
             );
-            log.info("Database connection established for bot startup");
-        } catch (SQLException ex) {
-            log.warn("Failed to establish database connection; bot will run with in-memory storage: {}", ex.getMessage());
+            connectionProvider = new RefreshingConnectionProvider(factory, 2);
+            try {
+                connectionProvider.getConnection();
+                log.info("Database connection established for bot startup");
+            } catch (SQLException ex) {
+                log.warn("Failed to establish database connection; bot will run with in-memory storage: {}", ex.getMessage());
+                connectionProvider.close();
+                connectionProvider = null;
+            }
         }
 
         TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
-        botsApi.registerBot(new SalexTelegramBot(token, username, conn));
+        botsApi.registerBot(new SalexTelegramBot(token, username, connectionProvider));
         log.info("Bot started using username {}", username);
     }
 }

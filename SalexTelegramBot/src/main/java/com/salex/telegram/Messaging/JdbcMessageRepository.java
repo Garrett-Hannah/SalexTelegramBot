@@ -1,9 +1,9 @@
 package com.salex.telegram.Messaging;
 
+import com.salex.telegram.Database.ConnectionProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Objects;
@@ -16,17 +16,17 @@ public class JdbcMessageRepository implements MessageRepository {
     private static final String INSERT_SQL =
             "INSERT INTO messages (user_id, chat_id, text, reply) VALUES (?,?,?,?)";
 
-    private final Connection connection;
+    private final ConnectionProvider connectionProvider;
 
-    public JdbcMessageRepository(Connection connection) {
-        this.connection = Objects.requireNonNull(connection, "connection");
+    public JdbcMessageRepository(ConnectionProvider connectionProvider) {
+        this.connectionProvider = Objects.requireNonNull(connectionProvider, "connectionProvider");
     }
 
     @Override
     public void save(LoggedMessage message) {
         Objects.requireNonNull(message, "message");
 
-        try (PreparedStatement ps = connection.prepareStatement(INSERT_SQL)) {
+        try (PreparedStatement ps = connectionProvider.getConnection().prepareStatement(INSERT_SQL)) {
             ps.setLong(1, message.getUserId());
             ps.setLong(2, message.getChatId());
             ps.setString(3, message.getRequestText());

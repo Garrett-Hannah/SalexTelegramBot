@@ -1,10 +1,8 @@
 package com.salex.telegram.Bot;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.salex.telegram.AiPackage.ChatCompletionClient;
 import com.salex.telegram.AiPackage.ConversationContextService;
-import com.salex.telegram.AiPackage.ConversationMessage;
+import com.salex.telegram.AiPackage.OpenAIChatCompletionClient;
 import com.salex.telegram.Database.ConnectionProvider;
 import com.salex.telegram.Database.StaticConnectionProvider;
 import com.salex.telegram.Transcription.OpenAIWhisperClient;
@@ -32,10 +30,7 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -47,6 +42,7 @@ import java.util.*;
  * and forwards free-form messages to a language model while keeping short-term conversation context.
  */
 public class SalexTelegramBot extends TelegramLongPollingBot {
+    //TODO: is there something i can do with all these things? maybe.
     private static final Logger log = LoggerFactory.getLogger(SalexTelegramBot.class);
     private final String username;
     private final ConnectionProvider connectionProvider;
@@ -56,6 +52,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     private final TranscriptionMessageFormatter transcriptionFormatter;
     private final MessageRepository messageRepository;
     private final ConversationContextService conversationContextService;
+    private final ChatCompletionClient chatCompletionClient;
     private final ModuleRegistry moduleRegistry;
     private final Map<String, CommandHandler> commands = new HashMap<>();
 
@@ -83,10 +80,12 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                 new TicketMessageFormatter(),
                 null,
                 null,
+                null,
                 null);
         log.info("TelegramBot initialised with {} ticket backend", connectionProvider != null ? "JDBC" : "in-memory");
     }
 
+    //TODO: question can i fix this or is it nessecary to do this.
     /**
      * Creates a bot with explicit ticket service and formatter dependencies.
      *
@@ -98,13 +97,15 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      * @param transcriptionService    service used for transcribing audio messages (may be {@code null} to disable feature)
      * @param transcriptionFormatter  formatter used for transcription responses (ignored when service is {@code null})
      * @param messageRepository       repository used for persisting and retrieving conversational turns (may be {@code null} to auto-configure)
+     * @param chatCompletionClient    client used to obtain language model responses (may be {@code null} to auto-configure)
      */
     public SalexTelegramBot(String token, String username, ConnectionProvider connectionProvider,
                             TicketService ticketService,
                             TicketMessageFormatter ticketFormatter,
                             TranscriptionService transcriptionService,
                             TranscriptionMessageFormatter transcriptionFormatter,
-                            MessageRepository messageRepository) {
+                            MessageRepository messageRepository,
+                            ChatCompletionClient chatCompletionClient) {
         super(token);
         this.username = username;
         this.connectionProvider = connectionProvider;
@@ -121,8 +122,12 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                 ? (transcriptionFormatter != null ? transcriptionFormatter : new TranscriptionMessageFormatter())
                 : null;
 
+        this.chatCompletionClient = chatCompletionClient != null
+                ? chatCompletionClient
+                : createDefaultChatCompletionClient();
         this.conversationContextService = new ConversationContextService(this.messageRepository);
-        this.moduleRegistry = initialiseModules(ticketService, ticketFormatter, resolvedTranscription, this.transcriptionFormatter);
+        this.moduleRegistry = initialiseModules(ticketService, ticketFormatter, resolvedTranscription,
+                this.transcriptionFormatter, this.chatCompletionClient);
         log.info("Initialised {} modules", moduleRegistry.size());
         registerModuleCommands();
 
@@ -155,6 +160,21 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         return new TranscriptionService(new TelegramAudioDownloader(this), whisperClient);
     }
 
+    private ChatCompletionClient createDefaultChatCompletionClient() {
+        String apiKey = System.getenv("OPENAI_API_KEY");
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("OPENAI_API_KEY not provided; conversational relay will be unavailable.");
+            return conversation -> {
+                throw new IllegalStateException("OPENAI_API_KEY not configured");
+            };
+        }
+        String model = Optional.ofNullable(System.getenv("OPENAI_CHAT_MODEL"))
+                .filter(value -> !value.isBlank())
+                .orElse("gpt-4o-mini");
+        return new OpenAIChatCompletionClient(HttpClient.newHttpClient(), apiKey, model);
+    }
+
+    //TODO: questioning whether there is a better way to access this without all the inputs. kinda a red flag.
     /**
      * Creates the ordered list of modules that can contribute commands and consume updates.
      * Ticketing and transcription modules are included only when their backing services are available.
@@ -162,7 +182,8 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     private ModuleRegistry initialiseModules(TicketService ticketService,
                                              TicketMessageFormatter ticketFormatter,
                                              TranscriptionService transcriptionService,
-                                             TranscriptionMessageFormatter transcriptionFormatter) {
+                                             TranscriptionMessageFormatter transcriptionFormatter,
+                                             ChatCompletionClient chatCompletionClient) {
         ModuleRegistry registry = new ModuleRegistry();
         if (ticketService != null && ticketFormatter != null) {
             registry.register(new TicketingBotModule(ticketService, ticketFormatter));
@@ -170,7 +191,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         if (transcriptionService != null && transcriptionFormatter != null) {
             registry.register(new TranscriptionBotModule(transcriptionService, transcriptionFormatter));
         }
-        registry.register(new ConversationalRelayModule(messageRepository, conversationContextService));
+        registry.register(new ConversationalRelayModule(messageRepository, conversationContextService, chatCompletionClient));
         return registry;
     }
 
@@ -383,74 +404,6 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         sendChatTyping(chatId, null);
     }
 
-
-    /**TODO: Change this so that chat queries are returned as a type of object.
-     *
-     */
-
-    /**
-     * Convenience helper that forwards a single user prompt to the chat completion endpoint.
-     * This delegates to {@link #callChatGPT(List)} after wrapping the prompt in a conversation list.
-     *
-     * @param prompt the latest user message to forward to the language model
-     * @return the assistant reply extracted from the API response
-     * @throws Exception if the HTTP request fails or the client cannot be created
-     */
-    public String callChatGPT(String prompt) throws Exception {
-        String safePrompt = prompt != null ? prompt : "";
-        return callChatGPT(List.of(new ConversationMessage("user", safePrompt)));
-    }
-
-    //TODO: turn this into a largely self contained subclass.
-    /**
-     * Calls the configured OpenAI chat-completions endpoint using the supplied conversation history.
-     *
-     * @param conversation ordered list of prior exchanges ending with the latest user message
-     * @return the assistant reply extracted from the API response
-     * @throws Exception if the HTTP request fails or the client cannot be created
-     */
-    public String callChatGPT(List<ConversationMessage> conversation) throws Exception {
-        HttpClient client = HttpClient.newHttpClient();
-        Objects.requireNonNull(conversation, "conversation");
-
-        JsonObject payload = new JsonObject();
-        payload.addProperty("model", "gpt-4o-mini");
-
-        JsonArray messages = new JsonArray();
-        if (conversation.isEmpty()) {
-            JsonObject fallbackMessage = new JsonObject();
-            fallbackMessage.addProperty("role", "user");
-            fallbackMessage.addProperty("content", "");
-            messages.add(fallbackMessage);
-        } else {
-            for (ConversationMessage entry : conversation) {
-                JsonObject messageObject = new JsonObject();
-                messageObject.addProperty("role", entry.role());
-                messageObject.addProperty("content", entry.content());
-                messages.add(messageObject);
-            }
-        }
-        payload.add("messages", messages);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.openai.com/v1/chat/completions"))
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + System.getenv("OPENAI_API_KEY"))
-                .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
-                .build();
-
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        log.debug("ChatGPT API responded with status {}", response.statusCode());
-
-        // parse with Gson //TODO: make this into something easier to handle responses.
-        JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
-        JsonArray choices = root.getAsJsonArray("choices");
-        JsonObject message = choices.get(0).getAsJsonObject().getAsJsonObject("message");
-        String content = message.get("content").getAsString();
-
-        return content; // just the assistant reply
-    }
-
     public static Builder builder() {
         return new Builder();
     }
@@ -515,9 +468,17 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         }
         this.messageRepository = resolvedMessageRepository;
 
+        ChatCompletionClient resolvedChatClient;
+        if (builder.chatCompletionClientSet && builder.chatCompletionClient != null) {
+            resolvedChatClient = builder.chatCompletionClient;
+        } else {
+            resolvedChatClient = createDefaultChatCompletionClient();
+        }
+        this.chatCompletionClient = resolvedChatClient;
+
         this.conversationContextService = new ConversationContextService(this.messageRepository);
         this.moduleRegistry = initialiseModules(resolvedTicketService, resolvedTicketFormatter,
-                resolvedTranscription, this.transcriptionFormatter);
+                resolvedTranscription, this.transcriptionFormatter, this.chatCompletionClient);
         log.info("Initialised {} modules", moduleRegistry.size());
         registerModuleCommands();
         log.info("TelegramBot registered {} command handlers", commands.size());
@@ -532,12 +493,14 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         private TranscriptionService transcriptionService;
         private TranscriptionMessageFormatter transcriptionFormatter;
         private MessageRepository messageRepository;
+        private ChatCompletionClient chatCompletionClient;
 
         private boolean ticketServiceSet;
         private boolean ticketFormatterSet;
         private boolean transcriptionServiceSet;
         private boolean transcriptionFormatterSet;
         private boolean messageRepositorySet;
+        private boolean chatCompletionClientSet;
 
         //Why is this a fucking thing.
         private boolean ticketingEnabled = true;
@@ -594,6 +557,12 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         public Builder messageRepository(MessageRepository messageRepository) {
             this.messageRepository = messageRepository;
             this.messageRepositorySet = true;
+            return this;
+        }
+
+        public Builder chatCompletionClient(ChatCompletionClient chatCompletionClient) {
+            this.chatCompletionClient = chatCompletionClient;
+            this.chatCompletionClientSet = true;
             return this;
         }
 

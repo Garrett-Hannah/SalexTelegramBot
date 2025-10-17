@@ -1,5 +1,6 @@
 package com.salex.telegram.Bot;
 
+import com.salex.telegram.AiPackage.ChatCompletionClient;
 import com.salex.telegram.AiPackage.ConversationContextService;
 import com.salex.telegram.AiPackage.ConversationMessage;
 import com.salex.telegram.Messaging.LoggedMessage;
@@ -19,10 +20,14 @@ public class ConversationalRelayModule implements TelegramBotModule {
     private static final Logger log = LoggerFactory.getLogger(ConversationalRelayModule.class);
     private final MessageRepository messageRepository;
     private final ConversationContextService conversationContextService;
+    private final ChatCompletionClient chatCompletionClient;
 
-    ConversationalRelayModule(MessageRepository messageRepository, ConversationContextService conversationContextService) {
+    ConversationalRelayModule(MessageRepository messageRepository,
+                              ConversationContextService conversationContextService,
+                              ChatCompletionClient chatCompletionClient) {
         this.messageRepository = Objects.requireNonNull(messageRepository);
         this.conversationContextService = Objects.requireNonNull(conversationContextService);
+        this.chatCompletionClient = Objects.requireNonNull(chatCompletionClient);
     }
 
     @Override
@@ -50,7 +55,7 @@ public class ConversationalRelayModule implements TelegramBotModule {
 
             List<ConversationMessage> requestMessages =
                     conversationContextService.buildRequestMessages(chatId, userId, userText);
-            String replyText = bot.callChatGPT(requestMessages);
+            String replyText = chatCompletionClient.complete(requestMessages);
             log.info("ChatGPT responded to user {} with {} characters", userId, replyText.length());
 
             conversationContextService.recordExchange(chatId, userId, userText, replyText);

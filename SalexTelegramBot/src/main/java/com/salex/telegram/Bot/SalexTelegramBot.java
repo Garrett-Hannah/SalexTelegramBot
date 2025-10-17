@@ -13,6 +13,10 @@ import com.salex.telegram.Transcription.commands.TranscriptionMessageFormatter;
 import com.salex.telegram.Messaging.JdbcMessageRepository;
 import com.salex.telegram.Messaging.MessageRepository;
 import com.salex.telegram.Messaging.NoopMessageRepository;
+import com.salex.telegram.Users.InMemoryUserService;
+import com.salex.telegram.Users.JdbcUserService;
+import com.salex.telegram.Users.UserRecord;
+import com.salex.telegram.Users.UserService;
 import com.salex.telegram.Ticketing.InMemory.InMemoryTicketRepository;
 import com.salex.telegram.Ticketing.InMemory.InMemoryTicketSessionManager;
 import com.salex.telegram.Ticketing.OnServer.ServerTicketRepository;
@@ -28,14 +32,16 @@ import org.telegram.telegrambots.meta.api.methods.send.SendChatAction;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.net.http.HttpClient;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Telegram bot implementation that dispatches commands, manages ticket workflows,
@@ -53,6 +59,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     private final MessageRepository messageRepository;
     private final ConversationContextService conversationContextService;
     private final ChatCompletionClient chatCompletionClient;
+    private final UserService userService;
     private final ModuleRegistry moduleRegistry;
     private final Map<String, CommandHandler> commands = new HashMap<>();
 
@@ -81,6 +88,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                 null,
                 null,
                 null,
+                null,
                 null);
         log.info("TelegramBot initialised with {} ticket backend", connectionProvider != null ? "JDBC" : "in-memory");
     }
@@ -105,7 +113,8 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                             TranscriptionService transcriptionService,
                             TranscriptionMessageFormatter transcriptionFormatter,
                             MessageRepository messageRepository,
-                            ChatCompletionClient chatCompletionClient) {
+                            ChatCompletionClient chatCompletionClient,
+                            UserService userService) {
         super(token);
         this.username = username;
         this.connectionProvider = connectionProvider;
@@ -125,6 +134,9 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         this.chatCompletionClient = chatCompletionClient != null
                 ? chatCompletionClient
                 : createDefaultChatCompletionClient();
+        this.userService = userService != null
+                ? userService
+                : createDefaultUserService(connectionProvider);
         this.conversationContextService = new ConversationContextService(this.messageRepository);
         this.moduleRegistry = initialiseModules(ticketService, ticketFormatter, resolvedTranscription,
                 this.transcriptionFormatter, this.chatCompletionClient);
@@ -147,6 +159,13 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
             return new JdbcMessageRepository(connectionProvider);
         }
         return new NoopMessageRepository();
+    }
+
+    private UserService createDefaultUserService(ConnectionProvider connectionProvider) {
+        if (connectionProvider != null) {
+            return new JdbcUserService(connectionProvider);
+        }
+        return new InMemoryUserService();
     }
 
     private TranscriptionService createDefaultTranscriptionService() {
@@ -269,9 +288,16 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                 chatId,
                 telegramUserId);
 
+        User telegramUser = message.getFrom();
+        if (telegramUser == null) {
+            log.warn("Received message in chat {} without sender metadata; update ignored", chatId);
+            return;
+        }
+
         long userId;
         try {
-            userId = ensureUser(update);
+            UserRecord userRecord = userService.ensureUser(telegramUser);
+            userId = userRecord.id();
         } catch (SQLException ex) {
             sendMessage(chatId, threadId, "[Error] Failed to resolve user: " + ex.getMessage());
             log.error("Failed to resolve user for chat {}: {}", chatId, ex.getMessage(), ex);
@@ -315,50 +341,6 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
 
         log.info("Executing command {} for user {}", handler.getName(), userId);
         handler.handle(update, this, userId);
-    }
-
-    //TODO: this likely should and could be refactored into a subclass, of course this would make some things easier.
-    /**
-     * Ensures that the Telegram user has a corresponding database record, creating one if necessary.
-     *
-     * @param update the update containing the Telegram user metadata
-     * @return the internal user identifier to use for persistence
-     * @throws SQLException if a database operation fails
-     */
-    private long ensureUser(Update update) throws SQLException {
-        if (connectionProvider == null) {
-            log.debug("Database connection unavailable; using telegram ID as user ID");
-            return update.getMessage().getFrom().getId();
-        }
-
-        long telegramId = update.getMessage().getFrom().getId();
-        Connection connection = connectionProvider.getConnection();
-        try (PreparedStatement findUser = connection.prepareStatement(
-                "SELECT id FROM users WHERE telegram_id=?")) {
-            findUser.setLong(1, telegramId);
-            try (ResultSet rs = findUser.executeQuery()) {
-                if (rs.next()) {
-                    long userId = rs.getLong("id");
-                    log.debug("Resolved existing user {} for telegram {}", userId, telegramId);
-                    return userId;
-                }
-            }
-        }
-
-        try (PreparedStatement insertUser = connection.prepareStatement(
-                "INSERT INTO users (telegram_id, username, first_name, last_name) " +
-                        "VALUES (?,?,?,?) RETURNING id")) {
-            insertUser.setLong(1, telegramId);
-            insertUser.setString(2, update.getMessage().getFrom().getUserName());
-            insertUser.setString(3, update.getMessage().getFrom().getFirstName());
-            insertUser.setString(4, update.getMessage().getFrom().getLastName());
-            try (ResultSet newUser = insertUser.executeQuery()) {
-                newUser.next();
-                long userId = newUser.getLong("id");
-                log.info("Created new user {} for telegram {}", userId, telegramId);
-                return userId;
-            }
-        }
     }
 
     /**
@@ -476,6 +458,14 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         }
         this.chatCompletionClient = resolvedChatClient;
 
+        UserService resolvedUserService;
+        if (builder.userServiceSet && builder.userService != null) {
+            resolvedUserService = builder.userService;
+        } else {
+            resolvedUserService = createDefaultUserService(connectionProvider);
+        }
+        this.userService = resolvedUserService;
+
         this.conversationContextService = new ConversationContextService(this.messageRepository);
         this.moduleRegistry = initialiseModules(resolvedTicketService, resolvedTicketFormatter,
                 resolvedTranscription, this.transcriptionFormatter, this.chatCompletionClient);
@@ -494,6 +484,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         private TranscriptionMessageFormatter transcriptionFormatter;
         private MessageRepository messageRepository;
         private ChatCompletionClient chatCompletionClient;
+        private UserService userService;
 
         private boolean ticketServiceSet;
         private boolean ticketFormatterSet;
@@ -501,6 +492,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         private boolean transcriptionFormatterSet;
         private boolean messageRepositorySet;
         private boolean chatCompletionClientSet;
+        private boolean userServiceSet;
 
         //Why is this a fucking thing.
         private boolean ticketingEnabled = true;
@@ -563,6 +555,12 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         public Builder chatCompletionClient(ChatCompletionClient chatCompletionClient) {
             this.chatCompletionClient = chatCompletionClient;
             this.chatCompletionClientSet = true;
+            return this;
+        }
+
+        public Builder userService(UserService userService) {
+            this.userService = userService;
+            this.userServiceSet = true;
             return this;
         }
 

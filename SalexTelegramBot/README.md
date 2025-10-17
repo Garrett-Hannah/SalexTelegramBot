@@ -38,6 +38,7 @@ Salex Telegram Bot is a Java 23 Telegram bot that combines a conversational assi
 - **Commanding** (`com.salex.telegram.Commanding`) defines the `CommandHandler` contract implemented by menu and ticket handlers.
 - **Ticketing Domain** (`com.salex.telegram.Ticketing`) models tickets, priorities, statuses, repositories, and the `TicketService` that manages draft lifecycle and persistence.
 - **Formatting** (`com.salex.telegram.Ticketing.commands.TicketMessageFormatter`) centralises Telegram-friendly message templates for consistency.
+- **User Directory** (`com.salex.telegram.Users`) encapsulates user resolution with `UserService`, supporting JDBC and in-memory backends.
 
 ---
 
@@ -181,6 +182,7 @@ src/
     Main.java                               # Application entry point
     com/salex/telegram/Bot/                 # Telegram bot implementation and command registration
     com/salex/telegram/commanding/          # CommandHandler interface contract
+    com/salex/telegram/Users/               # UserService implementations (JDBC, in-memory)
     com/salex/telegram/ticketing/           # Ticket domain models, services, repositories
     com/salex/telegram/ticketing/commands/  # Ticket command handler and message formatting
 ```

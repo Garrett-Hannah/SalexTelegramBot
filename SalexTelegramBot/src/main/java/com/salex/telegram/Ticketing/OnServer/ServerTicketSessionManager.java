@@ -1,11 +1,11 @@
 package com.salex.telegram.Ticketing.OnServer;
 
+import com.salex.telegram.Database.ConnectionProvider;
 import com.salex.telegram.Ticketing.TicketDraft;
 import com.salex.telegram.Ticketing.TicketSessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -37,16 +37,16 @@ public class ServerTicketSessionManager implements TicketSessionManager {
             WHERE chat_id = ? AND user_id = ?
             """;
 
-    private final Connection connection;
+    private final ConnectionProvider connectionProvider;
 
     /**
-     * Creates a session manager bound to the given JDBC connection.
+     * Creates a session manager bound to the given JDBC connection provider.
      *
-     * @param connection open JDBC connection
+     * @param connectionProvider provider supplying JDBC connections
      */
-    public ServerTicketSessionManager(Connection connection) {
-        this.connection = Objects.requireNonNull(connection, "connection");
-        log.info("ServerTicketSessionManager initialised with JDBC connection");
+    public ServerTicketSessionManager(ConnectionProvider connectionProvider) {
+        this.connectionProvider = Objects.requireNonNull(connectionProvider, "connectionProvider");
+        log.info("ServerTicketSessionManager initialised with JDBC connection provider");
     }
 
     /**
@@ -56,7 +56,7 @@ public class ServerTicketSessionManager implements TicketSessionManager {
     public void openSession(long chatId, long userId) {
         try {
             closeSession(chatId, userId);
-            try (PreparedStatement ps = connection.prepareStatement(INSERT_SESSION_SQL)) {
+            try (PreparedStatement ps = connectionProvider.getConnection().prepareStatement(INSERT_SESSION_SQL)) {
                 ps.setLong(1, chatId);
                 ps.setLong(2, userId);
                 ps.setNull(3, Types.BIGINT);
@@ -77,7 +77,7 @@ public class ServerTicketSessionManager implements TicketSessionManager {
      */
     @Override
     public Optional<TicketDraft> getDraft(long chatId, long userId) {
-        try (PreparedStatement ps = connection.prepareStatement(SELECT_SESSION_SQL)) {
+        try (PreparedStatement ps = connectionProvider.getConnection().prepareStatement(SELECT_SESSION_SQL)) {
             ps.setLong(1, chatId);
             ps.setLong(2, userId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -115,7 +115,7 @@ public class ServerTicketSessionManager implements TicketSessionManager {
      */
     @Override
     public void updateDraft(long chatId, long userId, TicketDraft draft) {
-        try (PreparedStatement ps = connection.prepareStatement(UPDATE_SESSION_SQL)) {
+        try (PreparedStatement ps = connectionProvider.getConnection().prepareStatement(UPDATE_SESSION_SQL)) {
             if (draft.getTicketId() == null) {
                 ps.setNull(1, Types.BIGINT);
             } else {
@@ -145,7 +145,7 @@ public class ServerTicketSessionManager implements TicketSessionManager {
      */
     @Override
     public void closeSession(long chatId, long userId) {
-        try (PreparedStatement ps = connection.prepareStatement(DELETE_SESSION_SQL)) {
+        try (PreparedStatement ps = connectionProvider.getConnection().prepareStatement(DELETE_SESSION_SQL)) {
             ps.setLong(1, chatId);
             ps.setLong(2, userId);
             ps.executeUpdate();

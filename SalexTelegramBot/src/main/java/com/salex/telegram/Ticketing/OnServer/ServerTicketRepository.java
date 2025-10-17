@@ -1,5 +1,6 @@
 package com.salex.telegram.Ticketing.OnServer;
 
+import com.salex.telegram.Database.ConnectionProvider;
 import com.salex.telegram.Ticketing.Ticket;
 import com.salex.telegram.Ticketing.TicketPriority;
 import com.salex.telegram.Ticketing.TicketRepository;
@@ -7,7 +8,6 @@ import com.salex.telegram.Ticketing.TicketStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -46,16 +46,16 @@ public class ServerTicketRepository implements TicketRepository {
             WHERE id = ?
             """;
 
-    private final Connection connection;
+    private final ConnectionProvider connectionProvider;
 
     /**
-     * Creates a repository using the supplied JDBC connection.
+     * Creates a repository using the supplied JDBC connection provider.
      *
-     * @param connection open JDBC connection
+     * @param connectionProvider provider that supplies JDBC connections
      */
-    public ServerTicketRepository(Connection connection) {
-        this.connection = Objects.requireNonNull(connection, "connection");
-        log.info("ServerTicketRepository initialised with JDBC connection");
+    public ServerTicketRepository(ConnectionProvider connectionProvider) {
+        this.connectionProvider = Objects.requireNonNull(connectionProvider, "connectionProvider");
+        log.info("ServerTicketRepository initialised with JDBC connection provider");
     }
 
     /**
@@ -63,7 +63,7 @@ public class ServerTicketRepository implements TicketRepository {
      */
     @Override
     public Ticket createDraftTicket(Ticket draft) {
-        try (PreparedStatement ps = connection.prepareStatement(INSERT_SQL)) {
+        try (PreparedStatement ps = connectionProvider.getConnection().prepareStatement(INSERT_SQL)) {
             bindTicket(ps, draft);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
@@ -84,7 +84,7 @@ public class ServerTicketRepository implements TicketRepository {
      */
     @Override
     public Optional<Ticket> findById(long ticketId) {
-        try (PreparedStatement ps = connection.prepareStatement(SELECT_BY_ID_SQL)) {
+        try (PreparedStatement ps = connectionProvider.getConnection().prepareStatement(SELECT_BY_ID_SQL)) {
             ps.setLong(1, ticketId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -105,7 +105,7 @@ public class ServerTicketRepository implements TicketRepository {
      */
     @Override
     public List<Ticket> findAllForUser(long userId) {
-        try (PreparedStatement ps = connection.prepareStatement(SELECT_FOR_USER_SQL)) {
+        try (PreparedStatement ps = connectionProvider.getConnection().prepareStatement(SELECT_FOR_USER_SQL)) {
             ps.setLong(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 List<Ticket> tickets = new ArrayList<>();
@@ -126,7 +126,7 @@ public class ServerTicketRepository implements TicketRepository {
      */
     @Override
     public Ticket save(Ticket ticket) {
-        try (PreparedStatement ps = connection.prepareStatement(UPDATE_SQL)) {
+        try (PreparedStatement ps = connectionProvider.getConnection().prepareStatement(UPDATE_SQL)) {
             ps.setString(1, ticket.getStatus().name());
             ps.setString(2, ticket.getPriority().name());
             ps.setTimestamp(3, Timestamp.from(ticket.getUpdatedAt()));

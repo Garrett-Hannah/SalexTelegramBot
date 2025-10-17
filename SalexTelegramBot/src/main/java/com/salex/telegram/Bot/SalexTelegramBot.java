@@ -3,6 +3,8 @@ package com.salex.telegram.Bot;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.salex.telegram.Database.ConnectionProvider;
+import com.salex.telegram.Database.StaticConnectionProvider;
 import com.salex.telegram.Ticketing.TicketHandler;
 import com.salex.telegram.Transcription.OpenAIWhisperClient;
 import com.salex.telegram.Transcription.TelegramAudioDownloader;
@@ -55,7 +57,7 @@ import java.util.Optional;
 public class SalexTelegramBot extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(SalexTelegramBot.class);
     private final String username;
-    private final Connection conn;
+    private final ConnectionProvider connectionProvider;
     private final TicketService ticketService;
     private final TicketMessageFormatter ticketFormatter;
     private final MessageRepository messageRepository;
@@ -67,6 +69,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
 
     //TODO: Turn modules into a list and work via that.
     private final GenericBotModule genericBotModule;
+
     /**
      * Creates a bot that uses in-memory ticket backing services for lightweight deployments.
      *
@@ -75,13 +78,24 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      * @param conn     JDBC connection used for persistence (may be {@code null} for in-memory usage)
      */
     public SalexTelegramBot(String token, String username, Connection conn) {
-        this(token, username, conn,
-                createDefaultTicketService(conn),
+        this(token, username, conn != null ? new StaticConnectionProvider(conn) : null);
+    }
+
+    /**
+     * Creates a bot that may transparently refresh its JDBC connection when provided.
+     *
+     * @param token               bot token provided by Telegram
+     * @param username            bot public username
+     * @param connectionProvider  provider used to supply JDBC connections (may be {@code null})
+     */
+    public SalexTelegramBot(String token, String username, ConnectionProvider connectionProvider) {
+        this(token, username, connectionProvider,
+                createDefaultTicketService(connectionProvider),
                 new TicketMessageFormatter(),
                 null,
                 null,
                 null);
-        log.info("TelegramBot initialised with {} ticket backend", conn != null ? "JDBC" : "in-memory");
+        log.info("TelegramBot initialised with {} ticket backend", connectionProvider != null ? "JDBC" : "in-memory");
     }
 
     /**
@@ -89,13 +103,13 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      *
      * @param token                   bot token provided by Telegram
      * @param username                bot public username
-     * @param conn                    JDBC connection used for persistence (may be {@code null})
+     * @param connectionProvider      provider used for persistence (may be {@code null})
      * @param ticketService           service handling ticket lifecycle operations (may be {@code null} for disabled ticketing)
      * @param ticketFormatter         formatter used for rendering ticket messages (may be {@code null} for disabled ticketing)
      * @param transcriptionService    service used for transcribing audio messages (may be {@code null} to disable feature)
      * @param transcriptionFormatter  formatter used for transcription responses (ignored when service is {@code null})
      */
-    public SalexTelegramBot(String token, String username, Connection conn,
+    public SalexTelegramBot(String token, String username, ConnectionProvider connectionProvider,
                             TicketService ticketService,
                             TicketMessageFormatter ticketFormatter,
                             TranscriptionService transcriptionService,
@@ -103,12 +117,12 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                             MessageRepository messageRepository) {
         super(token);
         this.username = username;
-        this.conn = conn;
+        this.connectionProvider = connectionProvider;
         this.ticketService = ticketService;
         this.ticketFormatter = ticketFormatter;
         this.messageRepository = messageRepository != null
                 ? messageRepository
-                : createDefaultMessageRepository(conn);
+                : createDefaultMessageRepository(connectionProvider);
         this.ticketHandler = ticketService != null && ticketFormatter != null
                 ? new TicketHandler(ticketService, ticketFormatter)
                 : null;
@@ -127,16 +141,16 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         //TODO: set up modules so that itll also note how many modules there are.
     }
 
-    private static TicketService createDefaultTicketService(Connection conn) {
-        if (conn != null) {
-            return new TicketService(new ServerTicketRepository(conn), new ServerTicketSessionManager(conn));
+    private static TicketService createDefaultTicketService(ConnectionProvider connectionProvider) {
+        if (connectionProvider != null) {
+            return new TicketService(new ServerTicketRepository(connectionProvider), new ServerTicketSessionManager(connectionProvider));
         }
         return new TicketService(new InMemoryTicketRepository(), new InMemoryTicketSessionManager());
     }
 
-    private MessageRepository createDefaultMessageRepository(Connection conn) {
-        if (conn != null) {
-            return new JdbcMessageRepository(conn);
+    private MessageRepository createDefaultMessageRepository(ConnectionProvider connectionProvider) {
+        if (connectionProvider != null) {
+            return new JdbcMessageRepository(connectionProvider);
         }
         return new NoopMessageRepository();
     }
@@ -174,7 +188,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     }
 
     //TODO: question, would it be beneficial to make this also into its own almost class. Should the bot just be like 30 different things that
-    //Essetnailly just orhcestrates the interaction? This is for another time. 
+    //Essetnailly just orhcestrates the interaction? This is for another time.
     /**
      * Routes incoming Telegram updates to the appropriate command or conversational handler.
      *
@@ -353,42 +367,39 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      * @throws SQLException if a database operation fails
      */
     private long ensureUser(Update update) throws SQLException {
-        if (conn == null) {
+        if (connectionProvider == null) {
             log.debug("Database connection unavailable; using telegram ID as user ID");
             return update.getMessage().getFrom().getId();
         }
 
         long telegramId = update.getMessage().getFrom().getId();
-        PreparedStatement findUser = conn.prepareStatement(
-                "SELECT id FROM users WHERE telegram_id=?");
-        findUser.setLong(1, telegramId);
-        ResultSet rs = findUser.executeQuery();
-
-        if (rs.next()) {
-            long userId = rs.getLong("id");
-            rs.close();
-            findUser.close();
-            log.debug("Resolved existing user {} for telegram {}", userId, telegramId);
-            return userId;
+        Connection connection = connectionProvider.getConnection();
+        try (PreparedStatement findUser = connection.prepareStatement(
+                "SELECT id FROM users WHERE telegram_id=?")) {
+            findUser.setLong(1, telegramId);
+            try (ResultSet rs = findUser.executeQuery()) {
+                if (rs.next()) {
+                    long userId = rs.getLong("id");
+                    log.debug("Resolved existing user {} for telegram {}", userId, telegramId);
+                    return userId;
+                }
+            }
         }
 
-        rs.close();
-        findUser.close();
-
-        PreparedStatement insertUser = conn.prepareStatement(
+        try (PreparedStatement insertUser = connection.prepareStatement(
                 "INSERT INTO users (telegram_id, username, first_name, last_name) " +
-                        "VALUES (?,?,?,?) RETURNING id");
-        insertUser.setLong(1, telegramId);
-        insertUser.setString(2, update.getMessage().getFrom().getUserName());
-        insertUser.setString(3, update.getMessage().getFrom().getFirstName());
-        insertUser.setString(4, update.getMessage().getFrom().getLastName());
-        ResultSet newUser = insertUser.executeQuery();
-        newUser.next();
-        long userId = newUser.getLong("id");
-        newUser.close();
-        insertUser.close();
-        log.info("Created new user {} for telegram {}", userId, telegramId);
-        return userId;
+                        "VALUES (?,?,?,?) RETURNING id")) {
+            insertUser.setLong(1, telegramId);
+            insertUser.setString(2, update.getMessage().getFrom().getUserName());
+            insertUser.setString(3, update.getMessage().getFrom().getFirstName());
+            insertUser.setString(4, update.getMessage().getFrom().getLastName());
+            try (ResultSet newUser = insertUser.executeQuery()) {
+                newUser.next();
+                long userId = newUser.getLong("id");
+                log.info("Created new user {} for telegram {}", userId, telegramId);
+                return userId;
+            }
+        }
     }
 
     /**
@@ -486,14 +497,14 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     private SalexTelegramBot(Builder builder) {
         super(builder.token);
         this.username = builder.username;
-        this.conn = builder.connection;
+        this.connectionProvider = builder.connectionProvider;
 
         TicketService resolvedTicketService;
         if (builder.ticketingEnabled) {
             if (builder.ticketServiceSet) {
                 resolvedTicketService = builder.ticketService;
             } else {
-                resolvedTicketService = createDefaultTicketService(conn);
+                resolvedTicketService = createDefaultTicketService(connectionProvider);
             }
         } else {
             resolvedTicketService = null;
@@ -539,7 +550,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
             if (builder.messageRepositorySet && builder.messageRepository != null) {
                 resolvedMessageRepository = builder.messageRepository;
             } else {
-                resolvedMessageRepository = createDefaultMessageRepository(conn);
+                resolvedMessageRepository = createDefaultMessageRepository(connectionProvider);
             }
         } else {
             resolvedMessageRepository = new NoopMessageRepository();
@@ -555,7 +566,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     public static final class Builder {
         private String token;
         private String username;
-        private Connection connection;
+        private ConnectionProvider connectionProvider;
         private TicketService ticketService;
         private TicketMessageFormatter ticketFormatter;
         private TranscriptionService transcriptionService;
@@ -588,7 +599,12 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         }
 
         public Builder connection(Connection connection) {
-            this.connection = connection;
+            this.connectionProvider = connection != null ? new StaticConnectionProvider(connection) : null;
+            return this;
+        }
+
+        public Builder connectionProvider(ConnectionProvider connectionProvider) {
+            this.connectionProvider = connectionProvider;
             return this;
         }
 

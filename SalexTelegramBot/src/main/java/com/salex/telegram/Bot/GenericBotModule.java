@@ -1,46 +1,60 @@
 package com.salex.telegram.Bot;
 
+import com.salex.telegram.AiPackage.ConversationContextService;
+import com.salex.telegram.AiPackage.ConversationMessage;
 import com.salex.telegram.Messaging.LoggedMessage;
 import com.salex.telegram.Messaging.MessageRepository;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import org.slf4j.Logger;
-
-//This module defines behaviour for default messages.
-public class GenericBotModule implements TelegramBotModule{
+/**
+ * Handles free-form chat messages by assembling conversation context, calling the LLM,
+ * and persisting the resulting exchange.
+ */
+public class GenericBotModule implements TelegramBotModule {
     private static final Logger log = LoggerFactory.getLogger(GenericBotModule.class);
     private final MessageRepository messageRepository;
+    private final ConversationContextService conversationContextService;
 
-    GenericBotModule(MessageRepository messageRepository)
-    {
+    GenericBotModule(MessageRepository messageRepository, ConversationContextService conversationContextService) {
         this.messageRepository = Objects.requireNonNull(messageRepository);
+        this.conversationContextService = Objects.requireNonNull(conversationContextService);
     }
 
+    /**
+     * Fallback module can respond to any non-command update.
+     */
     @Override
-    public boolean canHandle (Update update) {
+    public boolean canHandle(Update update) {
         return true;
     }
 
+    /**
+     * Forwards the latest user message to the language model, including prior context, then
+     * logs the exchange and replies back to Telegram.
+     */
     @Override
-    public void handle (Update update, SalexTelegramBot bot, long userId) {
+    public void handle(Update update, SalexTelegramBot bot, long userId) {
         String userText = update.getMessage().getText();
         long chatId = update.getMessage().getChatId();
         Integer threadId = update.getMessage().getMessageThreadId();
-        long telegramId = update.getMessage().getFrom().getId();
 
         try {
             bot.sendChatTyping(chatId, threadId);
-            String replyText = bot.callChatGPT(userText); //TODO: Reimplement a way for this. shouldnt be public.
+
+            List<ConversationMessage> requestMessages =
+                    conversationContextService.buildRequestMessages(chatId, userId, userText);
+            String replyText = bot.callChatGPT(requestMessages);
             log.info("ChatGPT responded to user {} with {} characters", userId, replyText.length());
 
-            LoggedMessage loggedMessage =
-                    new LoggedMessage(userId, chatId, userText, replyText);
+            conversationContextService.recordExchange(chatId, userId, userText, replyText);
+
+            LoggedMessage loggedMessage = new LoggedMessage(userId, chatId, userText, replyText);
             messageRepository.save(loggedMessage);
             bot.sendMessage(chatId, threadId, replyText);
         } catch (Exception e) {
@@ -50,7 +64,7 @@ public class GenericBotModule implements TelegramBotModule{
     }
 
     @Override
-    public Map<String, CommandHandler> getCommands () {
+    public Map<String, CommandHandler> getCommands() {
         return Map.of();
     }
 }

@@ -111,6 +111,12 @@ public class TicketCommandHandler implements CommandHandler {
         List<Ticket> tickets = ticketService.listTicketsForUser(userId);
         log.info("User {} requested ticket list ({} items)", userId, tickets.size());
         bot.sendMessage(chatId, threadId, formatter.formatTicketList(tickets));
+
+        //TODO:  maybe interact with chat context to append a thing before to allow the use in relation. or like give a
+        //Recommendation on whats important.
+
+        //TODO: change interaction so closed tickets will not list.
+        //if there is a long time after close...
     }
 
     /**

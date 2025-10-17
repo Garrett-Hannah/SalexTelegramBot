@@ -3,6 +3,8 @@ package com.salex.telegram.Bot;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.salex.telegram.AiPackage.ConversationContextService;
+import com.salex.telegram.AiPackage.ConversationMessage;
 import com.salex.telegram.Database.ConnectionProvider;
 import com.salex.telegram.Database.StaticConnectionProvider;
 import com.salex.telegram.Ticketing.TicketHandler;
@@ -46,13 +48,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
  * Telegram bot implementation that dispatches commands, manages ticket workflows,
- * and forwards free-form messages to a language model.
+ * and forwards free-form messages to a language model while keeping short-term conversation context.
  */
 public class SalexTelegramBot extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(SalexTelegramBot.class);
@@ -61,6 +65,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     private final TicketService ticketService;
     private final TicketMessageFormatter ticketFormatter;
     private final MessageRepository messageRepository;
+    private final ConversationContextService conversationContextService;
 
     private final TicketHandler ticketHandler;
     private final TranscriptionService transcriptionService;
@@ -108,6 +113,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      * @param ticketFormatter         formatter used for rendering ticket messages (may be {@code null} for disabled ticketing)
      * @param transcriptionService    service used for transcribing audio messages (may be {@code null} to disable feature)
      * @param transcriptionFormatter  formatter used for transcription responses (ignored when service is {@code null})
+     * @param messageRepository       repository used for persisting and retrieving conversational turns (may be {@code null} to auto-configure)
      */
     public SalexTelegramBot(String token, String username, ConnectionProvider connectionProvider,
                             TicketService ticketService,
@@ -134,7 +140,8 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                 ? (transcriptionFormatter != null ? transcriptionFormatter : new TranscriptionMessageFormatter())
                 : null;
 
-        this.genericBotModule = new GenericBotModule(this.messageRepository);//[Removal MARK], should this be new or should I implement as diff funciton.
+        this.conversationContextService = new ConversationContextService(this.messageRepository);
+        this.genericBotModule = new GenericBotModule(this.messageRepository, this.conversationContextService);//[Removal MARK], should this be new or should I implement as diff funciton.
         registerDefaultCommands();
 
         log.info("TelegramBot registered {} command handlers", commands.size());
@@ -451,24 +458,46 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      */
 
     /**
-     * Calls the configured OpenAI chat completion endpoint with the supplied prompt.
+     * Convenience helper that forwards a single user prompt to the chat completion endpoint.
+     * This delegates to {@link #callChatGPT(List)} after wrapping the prompt in a conversation list.
      *
-     * @param prompt the message to forward to the language model
-     * @return the raw response payload returned by the API
+     * @param prompt the latest user message to forward to the language model
+     * @return the assistant reply extracted from the API response
      * @throws Exception if the HTTP request fails or the client cannot be created
      */
     public String callChatGPT(String prompt) throws Exception {
-        HttpClient client = HttpClient.newHttpClient();
         String safePrompt = prompt != null ? prompt : "";
+        return callChatGPT(List.of(new ConversationMessage("user", safePrompt)));
+    }
+
+    /**
+     * Calls the configured OpenAI chat-completions endpoint using the supplied conversation history.
+     *
+     * @param conversation ordered list of prior exchanges ending with the latest user message
+     * @return the assistant reply extracted from the API response
+     * @throws Exception if the HTTP request fails or the client cannot be created
+     */
+    public String callChatGPT(List<ConversationMessage> conversation) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+        Objects.requireNonNull(conversation, "conversation");
 
         JsonObject payload = new JsonObject();
         payload.addProperty("model", "gpt-4o-mini");
 
         JsonArray messages = new JsonArray();
-        JsonObject userMessage = new JsonObject();
-        userMessage.addProperty("role", "user");
-        userMessage.addProperty("content", safePrompt);
-        messages.add(userMessage);
+        if (conversation.isEmpty()) {
+            JsonObject fallbackMessage = new JsonObject();
+            fallbackMessage.addProperty("role", "user");
+            fallbackMessage.addProperty("content", "");
+            messages.add(fallbackMessage);
+        } else {
+            for (ConversationMessage entry : conversation) {
+                JsonObject messageObject = new JsonObject();
+                messageObject.addProperty("role", entry.role());
+                messageObject.addProperty("content", entry.content());
+                messages.add(messageObject);
+            }
+        }
         payload.add("messages", messages);
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -557,7 +586,8 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         }
         this.messageRepository = resolvedMessageRepository;
 
-        this.genericBotModule = new GenericBotModule(this.messageRepository);
+        this.conversationContextService = new ConversationContextService(this.messageRepository);
+        this.genericBotModule = new GenericBotModule(this.messageRepository, this.conversationContextService);
 
         registerDefaultCommands();
         log.info("TelegramBot registered {} command handlers", commands.size());
@@ -572,8 +602,6 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         private TranscriptionService transcriptionService;
         private TranscriptionMessageFormatter transcriptionFormatter;
         private MessageRepository messageRepository;
-
-        private GenericBotModule genericBotModule;
 
         private boolean ticketServiceSet;
         private boolean ticketFormatterSet;

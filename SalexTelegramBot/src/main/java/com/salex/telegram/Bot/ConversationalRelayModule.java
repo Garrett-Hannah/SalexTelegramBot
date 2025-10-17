@@ -13,15 +13,14 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Handles free-form chat messages by assembling conversation context, calling the LLM,
- * and persisting the resulting exchange.
+ * Fallback conversational module that relays free-form chat to the LLM while persisting history.
  */
-public class GenericBotModule implements TelegramBotModule {
-    private static final Logger log = LoggerFactory.getLogger(GenericBotModule.class);
+public class ConversationalRelayModule implements TelegramBotModule {
+    private static final Logger log = LoggerFactory.getLogger(ConversationalRelayModule.class);
     private final MessageRepository messageRepository;
     private final ConversationContextService conversationContextService;
 
-    GenericBotModule(MessageRepository messageRepository, ConversationContextService conversationContextService) {
+    ConversationalRelayModule(MessageRepository messageRepository, ConversationContextService conversationContextService) {
         this.messageRepository = Objects.requireNonNull(messageRepository);
         this.conversationContextService = Objects.requireNonNull(conversationContextService);
     }
@@ -38,7 +37,7 @@ public class GenericBotModule implements TelegramBotModule {
     @Override
     public void handle(Update update, SalexTelegramBot bot, long userId) {
         if (update == null || !update.hasMessage() || !update.getMessage().hasText()) {
-            log.debug("GenericBotModule skipped non-text update for user {}", userId);
+            log.debug("ConversationalRelayModule skipped non-text update for user {}", userId);
             return;
         }
 

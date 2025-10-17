@@ -40,12 +40,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * Telegram bot implementation that dispatches commands, manages ticket workflows,
@@ -61,7 +56,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     private final TranscriptionMessageFormatter transcriptionFormatter;
     private final MessageRepository messageRepository;
     private final ConversationContextService conversationContextService;
-    private final List<TelegramBotModule> modules;
+    private final ModuleRegistry moduleRegistry;
     private final Map<String, CommandHandler> commands = new HashMap<>();
 
     /**
@@ -127,8 +122,8 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                 : null;
 
         this.conversationContextService = new ConversationContextService(this.messageRepository);
-        this.modules = initialiseModules(ticketService, ticketFormatter, resolvedTranscription, this.transcriptionFormatter);
-        log.info("Initialised {} modules", modules.size());
+        this.moduleRegistry = initialiseModules(ticketService, ticketFormatter, resolvedTranscription, this.transcriptionFormatter);
+        log.info("Initialised {} modules", moduleRegistry.size());
         registerModuleCommands();
 
         log.info("TelegramBot registered {} command handlers", commands.size());
@@ -164,19 +159,19 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      * Creates the ordered list of modules that can contribute commands and consume updates.
      * Ticketing and transcription modules are included only when their backing services are available.
      */
-    private List<TelegramBotModule> initialiseModules(TicketService ticketService,
-                                                      TicketMessageFormatter ticketFormatter,
-                                                      TranscriptionService transcriptionService,
-                                                      TranscriptionMessageFormatter transcriptionFormatter) {
-        List<TelegramBotModule> moduleList = new ArrayList<>();
+    private ModuleRegistry initialiseModules(TicketService ticketService,
+                                             TicketMessageFormatter ticketFormatter,
+                                             TranscriptionService transcriptionService,
+                                             TranscriptionMessageFormatter transcriptionFormatter) {
+        ModuleRegistry registry = new ModuleRegistry();
         if (ticketService != null && ticketFormatter != null) {
-            moduleList.add(new TicketingBotModule(ticketService, ticketFormatter));
+            registry.register(new TicketingBotModule(ticketService, ticketFormatter));
         }
         if (transcriptionService != null && transcriptionFormatter != null) {
-            moduleList.add(new TranscriptionBotModule(transcriptionService, transcriptionFormatter));
+            registry.register(new TranscriptionBotModule(transcriptionService, transcriptionFormatter));
         }
-        moduleList.add(new GenericBotModule(messageRepository, conversationContextService));
-        return List.copyOf(moduleList);
+        registry.register(new ConversationalRelayModule(messageRepository, conversationContextService));
+        return registry;
     }
 
     /**
@@ -184,17 +179,40 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      */
     private void registerModuleCommands() {
         commands.clear();
-        for (TelegramBotModule module : modules) {
-            module.getCommands().forEach((name, handler) -> {
-                String key = name.toLowerCase(Locale.ROOT);
-                CommandHandler previous = commands.put(key, handler);
-                if (previous != null && previous != handler) {
-                    log.warn("Command {} supplied by {} overrides {}", key,
-                            module.getClass().getSimpleName(), previous.getClass().getSimpleName());
-                }
-            });
-        }
+        moduleRegistry.forEach(module -> module.getCommands().forEach((name, handler) -> {
+            String key = name.toLowerCase(Locale.ROOT);
+            CommandHandler previous = commands.put(key, handler);
+            if (previous != null && previous != handler) {
+                log.warn("Command {} supplied by {} overrides {}", key,
+                        module.getClass().getSimpleName(), previous.getClass().getSimpleName());
+            }
+        }));
         commands.put("/menu", new MenuCommandHandler(commands));
+    }
+
+    /**
+     * Checks whether the bot has an active module of the requested type.
+     */
+    public boolean hasModule(Class<? extends TelegramBotModule> moduleType) {
+        return moduleRegistry.contains(moduleType);
+    }
+
+    /**
+     * Retrieves a module instance by its concrete type.
+     *
+     * @param moduleType concrete module class
+     * @param <T>        module subtype
+     * @return optional module instance
+     */
+    public <T extends TelegramBotModule> Optional<T> getModule(Class<T> moduleType) {
+        return moduleRegistry.get(moduleType);
+    }
+
+    /**
+     * @return immutable registry view for advanced scenarios
+     */
+    public ModuleRegistry getModuleRegistry() {
+        return moduleRegistry;
     }
 
     /**
@@ -245,15 +263,14 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
             return;
         }
 
-        for (TelegramBotModule module : modules) {
-            if (module.canHandle(update, userId)) {
-                log.debug("Routing update in chat {} to module {}", chatId, module.getClass().getSimpleName());
-                module.handle(update, this, userId);
-                return;
-            }
-        }
+        moduleRegistry.stream()
+                .filter(module -> module.canHandle(update, userId))
+                .findFirst()
+                .ifPresentOrElse(module -> {
+                    log.debug("Routing update in chat {} to module {}", chatId, module.getClass().getSimpleName());
+                    module.handle(update, this, userId);
+                }, () -> log.debug("No module accepted update in chat {} from user {}", chatId, userId));
 
-        log.debug("No module accepted update in chat {} from user {}", chatId, userId);
     }
 
     /**
@@ -384,7 +401,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         return callChatGPT(List.of(new ConversationMessage("user", safePrompt)));
     }
 
-    //TODO: turn this into a largely self contained subclass. 
+    //TODO: turn this into a largely self contained subclass.
     /**
      * Calls the configured OpenAI chat-completions endpoint using the supplied conversation history.
      *
@@ -499,9 +516,9 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         this.messageRepository = resolvedMessageRepository;
 
         this.conversationContextService = new ConversationContextService(this.messageRepository);
-        this.modules = initialiseModules(resolvedTicketService, resolvedTicketFormatter,
+        this.moduleRegistry = initialiseModules(resolvedTicketService, resolvedTicketFormatter,
                 resolvedTranscription, this.transcriptionFormatter);
-        log.info("Initialised {} modules", modules.size());
+        log.info("Initialised {} modules", moduleRegistry.size());
         registerModuleCommands();
         log.info("TelegramBot registered {} command handlers", commands.size());
     }
@@ -522,6 +539,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         private boolean transcriptionFormatterSet;
         private boolean messageRepositorySet;
 
+        //Why is this a fucking thing.
         private boolean ticketingEnabled = true;
         private boolean transcriptionEnabled = true;
         private boolean messageLoggingEnabled = true;

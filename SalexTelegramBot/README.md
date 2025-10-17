@@ -168,6 +168,7 @@ JUnit 5 and AssertJ are available for both unit and integration testing of comma
 - **Persisting tickets:** Replace `InMemoryTicketRepository` with a JDBC-backed repository implementation and inject it into `TelegramBot` at construction time.
 - **Session management:** Swap `InMemoryTicketSessionManager` for a Redis or database-backed manager to support multi-instance deployments.
 - **New commands:** Implement a `CommandHandler`, expose it via `TelegramBotModule#getCommands`, and include the module in the bot so the command surfaces automatically in `/menu`.
+- **Modules:** Add feature bundles through the `ModuleRegistry`; `SalexTelegramBot#getModule(...)` lets you reach the live instance when advanced coordination is needed.
 - **Alternative LLM providers:** Replace `callChatGPT` with your preferred HTTP integration while keeping the conversational flow unchanged.
 
 ---

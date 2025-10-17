@@ -28,6 +28,7 @@
 - `/menu` – Enumerates registered commands.
 - `/ticket new` – Creates a draft ticket and opens a session.
 - `/ticket list|<id>|close` – Operates on persisted tickets via the repository.
+- Modules own their command registrations (`TicketingBotModule`, `TranscriptionBotModule`, `GenericBotModule`), while the bot aggregates them to drive `/menu`.
 
 ## Recent Bot Reliability & Context Notes
 - Multi-line user messages now reach OpenAI intact; `SalexTelegramBot.callChatGPT` builds the JSON payload with Gson objects to avoid string-formatting issues.

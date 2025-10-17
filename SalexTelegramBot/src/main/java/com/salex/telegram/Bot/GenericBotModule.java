@@ -26,11 +26,8 @@ public class GenericBotModule implements TelegramBotModule {
         this.conversationContextService = Objects.requireNonNull(conversationContextService);
     }
 
-    /**
-     * Fallback module can respond to any non-command update.
-     */
     @Override
-    public boolean canHandle(Update update) {
+    public boolean canHandle(Update update, long userId) {
         return true;
     }
 
@@ -40,6 +37,11 @@ public class GenericBotModule implements TelegramBotModule {
      */
     @Override
     public void handle(Update update, SalexTelegramBot bot, long userId) {
+        if (update == null || !update.hasMessage() || !update.getMessage().hasText()) {
+            log.debug("GenericBotModule skipped non-text update for user {}", userId);
+            return;
+        }
+
         String userText = update.getMessage().getText();
         long chatId = update.getMessage().getChatId();
         Integer threadId = update.getMessage().getMessageThreadId();

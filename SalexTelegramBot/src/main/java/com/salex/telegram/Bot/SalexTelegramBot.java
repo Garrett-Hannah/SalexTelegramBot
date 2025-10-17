@@ -7,27 +7,20 @@ import com.salex.telegram.AiPackage.ConversationContextService;
 import com.salex.telegram.AiPackage.ConversationMessage;
 import com.salex.telegram.Database.ConnectionProvider;
 import com.salex.telegram.Database.StaticConnectionProvider;
-import com.salex.telegram.Ticketing.TicketHandler;
 import com.salex.telegram.Transcription.OpenAIWhisperClient;
 import com.salex.telegram.Transcription.TelegramAudioDownloader;
-import com.salex.telegram.Transcription.TranscriptionException;
-import com.salex.telegram.Transcription.TranscriptionResult;
 import com.salex.telegram.Transcription.TranscriptionService;
-import com.salex.telegram.Transcription.commands.TranscriptionCommandHandler;
+import com.salex.telegram.Transcription.TranscriptionBotModule;
 import com.salex.telegram.Transcription.commands.TranscriptionMessageFormatter;
 import com.salex.telegram.Messaging.JdbcMessageRepository;
-import com.salex.telegram.Messaging.LoggedMessage;
-import com.salex.telegram.Messaging.MessagePersistenceException;
 import com.salex.telegram.Messaging.MessageRepository;
 import com.salex.telegram.Messaging.NoopMessageRepository;
 import com.salex.telegram.Ticketing.InMemory.InMemoryTicketRepository;
 import com.salex.telegram.Ticketing.InMemory.InMemoryTicketSessionManager;
 import com.salex.telegram.Ticketing.OnServer.ServerTicketRepository;
 import com.salex.telegram.Ticketing.OnServer.ServerTicketSessionManager;
-import com.salex.telegram.Ticketing.Ticket;
-import com.salex.telegram.Ticketing.TicketDraft;
 import com.salex.telegram.Ticketing.TicketService;
-import com.salex.telegram.Ticketing.commands.TicketCommandHandler;
+import com.salex.telegram.Ticketing.TicketingBotModule;
 import com.salex.telegram.Ticketing.commands.TicketMessageFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,12 +40,12 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * Telegram bot implementation that dispatches commands, manages ticket workflows,
@@ -64,16 +57,12 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     private final ConnectionProvider connectionProvider;
     private final TicketService ticketService;
     private final TicketMessageFormatter ticketFormatter;
-    private final MessageRepository messageRepository;
-    private final ConversationContextService conversationContextService;
-
-    private final TicketHandler ticketHandler;
     private final TranscriptionService transcriptionService;
     private final TranscriptionMessageFormatter transcriptionFormatter;
+    private final MessageRepository messageRepository;
+    private final ConversationContextService conversationContextService;
+    private final List<TelegramBotModule> modules;
     private final Map<String, CommandHandler> commands = new HashMap<>();
-
-    //TODO: Turn modules into a list and work via that.
-    private final GenericBotModule genericBotModule;
 
     /**
      * Creates a bot that uses in-memory ticket backing services for lightweight deployments.
@@ -129,9 +118,6 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         this.messageRepository = messageRepository != null
                 ? messageRepository
                 : createDefaultMessageRepository(connectionProvider);
-        this.ticketHandler = ticketService != null && ticketFormatter != null
-                ? new TicketHandler(ticketService, ticketFormatter)
-                : null;
         TranscriptionService resolvedTranscription = transcriptionService != null
                 ? transcriptionService
                 : createDefaultTranscriptionService();
@@ -141,8 +127,9 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
                 : null;
 
         this.conversationContextService = new ConversationContextService(this.messageRepository);
-        this.genericBotModule = new GenericBotModule(this.messageRepository, this.conversationContextService);//[Removal MARK], should this be new or should I implement as diff funciton.
-        registerDefaultCommands();
+        this.modules = initialiseModules(ticketService, ticketFormatter, resolvedTranscription, this.transcriptionFormatter);
+        log.info("Initialised {} modules", modules.size());
+        registerModuleCommands();
 
         log.info("TelegramBot registered {} command handlers", commands.size());
         //TODO: set up modules so that itll also note how many modules there are.
@@ -174,14 +161,38 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     }
 
     /**
-     * Initialises the default command handlers supported by the bot instance.
+     * Creates the ordered list of modules that can contribute commands and consume updates.
+     * Ticketing and transcription modules are included only when their backing services are available.
      */
-    private void registerDefaultCommands() {
+    private List<TelegramBotModule> initialiseModules(TicketService ticketService,
+                                                      TicketMessageFormatter ticketFormatter,
+                                                      TranscriptionService transcriptionService,
+                                                      TranscriptionMessageFormatter transcriptionFormatter) {
+        List<TelegramBotModule> moduleList = new ArrayList<>();
         if (ticketService != null && ticketFormatter != null) {
-            commands.put("/ticket", new TicketCommandHandler(ticketService, ticketFormatter));
+            moduleList.add(new TicketingBotModule(ticketService, ticketFormatter));
         }
         if (transcriptionService != null && transcriptionFormatter != null) {
-            commands.put("/transcribe", new TranscriptionCommandHandler(transcriptionService, transcriptionFormatter));
+            moduleList.add(new TranscriptionBotModule(transcriptionService, transcriptionFormatter));
+        }
+        moduleList.add(new GenericBotModule(messageRepository, conversationContextService));
+        return List.copyOf(moduleList);
+    }
+
+    /**
+     * Registers commands contributed by each module and appends the shared `/menu` command.
+     */
+    private void registerModuleCommands() {
+        commands.clear();
+        for (TelegramBotModule module : modules) {
+            module.getCommands().forEach((name, handler) -> {
+                String key = name.toLowerCase(Locale.ROOT);
+                CommandHandler previous = commands.put(key, handler);
+                if (previous != null && previous != handler) {
+                    log.warn("Command {} supplied by {} overrides {}", key,
+                            module.getClass().getSimpleName(), previous.getClass().getSimpleName());
+                }
+            });
         }
         commands.put("/menu", new MenuCommandHandler(commands));
     }
@@ -213,12 +224,6 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         long telegramUserId = message.getFrom() != null ? message.getFrom().getId() : -1L;
         Integer threadId = message.getMessageThreadId();
         String text = message.hasText() ? message.getText().trim() : "";
-        boolean hasAudio = hasAudioContent(message);
-
-        if (text.isEmpty() && !hasAudio) {
-            log.debug("Ignored update without text or audio content in chat {}", chatId);
-            return;
-        }
 
         log.info("Received update{} in chat {} from user {}",
                 text.isEmpty() ? "" : (" \"" + text + "\""),
@@ -240,43 +245,15 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
             return;
         }
 
-        if (hasAudio) {
-            log.debug("Handling audio message for user {}", userId);
-            handleAudioMessage(message, chatId, userId);
-            return;
+        for (TelegramBotModule module : modules) {
+            if (module.canHandle(update, userId)) {
+                log.debug("Routing update in chat {} to module {}", chatId, module.getClass().getSimpleName());
+                module.handle(update, this, userId);
+                return;
+            }
         }
 
-        if (ticketService != null && ticketService.hasActiveDraft(chatId, userId)) {
-            log.debug("Routing message to active ticket draft for user {}", userId);
-            handleTicketDraftMessage(chatId, threadId, userId, text);
-            return;
-        }
-
-        log.debug("Handling general message for user {}", userId);
-        if(genericBotModule != null && genericBotModule.canHandle(update)) {
-            genericBotModule.handle(update, this, userId);
-        }
-    }
-
-    private boolean hasAudioContent(Message message) {
-        return message != null && (message.hasVoice() || message.hasAudio() || message.hasVideoNote());
-    }
-
-    private void handleAudioMessage(Message message, long chatId, long userId) {
-        Integer threadId = message.getMessageThreadId();
-        if (transcriptionService == null || transcriptionFormatter == null) {
-            log.info("Transcription requested by user {} but service is disabled", userId);
-            sendMessage(chatId, threadId, "Audio transcription is currently unavailable.");
-            return;
-        }
-
-        try {
-            TranscriptionResult result = transcriptionService.transcribe(message);
-            sendMessage(chatId, threadId, transcriptionFormatter.formatResult(result));
-        } catch (TranscriptionException ex) {
-            log.error("Failed to transcribe audio for user {}: {}", userId, ex.getMessage(), ex);
-            sendMessage(chatId, threadId, transcriptionFormatter.formatError(ex.getMessage()));
-        }
+        log.debug("No module accepted update in chat {} from user {}", chatId, userId);
     }
 
     /**
@@ -300,69 +277,6 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
 
         log.info("Executing command {} for user {}", handler.getName(), userId);
         handler.handle(update, this, userId);
-    }
-
-    /**
-     * Processes user input collected as part of an active ticket draft workflow.
-     *
-     * @param chatId      the chat in which the workflow is running
-     * @param userId      the internal user identifier
-     * @param messageText the latest message supplied by the user
-     */
-    private void handleTicketDraftMessage(long chatId, Integer threadId, long userId, String messageText) {
-        Optional<TicketDraft.Step> currentStep = ticketService.getActiveStep(chatId, userId);
-        if (currentStep.isEmpty()) {
-            sendMessage(chatId, threadId, ticketFormatter.formatError("No active ticket step found."));
-            log.warn("No active ticket step found for chat {}, user {}", chatId, userId);
-            return;
-        }
-
-        try {
-            //This step takes in the ticket and collects the field.
-            Ticket ticket = ticketService.collectTicketField(chatId, userId, messageText);
-            log.info("Collected ticket field at step {} for ticket {}", currentStep.get(), ticket.getId());
-            sendMessage(chatId, threadId, ticketFormatter.formatStepAcknowledgement(currentStep.get(), ticket));
-
-            Optional<TicketDraft.Step> nextStep = ticketService.getActiveStep(chatId, userId);
-            if (nextStep.isPresent()) {
-                log.debug("Next ticket step for ticket {} is {}", ticket.getId(), nextStep.get());
-                sendMessage(chatId, threadId, ticketFormatter.formatNextStepPrompt(nextStep.get()));
-            } else {
-                log.info("Ticket {} creation complete", ticket.getId());
-                sendMessage(chatId, threadId, ticketFormatter.formatCreationComplete(ticket));
-            }
-        } catch (IllegalArgumentException | IllegalStateException ex) {
-            sendMessage(chatId, threadId, ticketFormatter.formatError(ex.getMessage()));
-            log.error("Failed to collect ticket field for chat {}, user {}: {}", chatId, userId, ex.getMessage(), ex);
-        }
-    }
-
-    /**
-     * Handles non-command text sent to the bot by relaying it to a language model and persisting the exchange.
-     *
-     * @param update the received Telegram update
-     * @param userId the resolved internal user identifier
-     */
-    private void handleGeneralMessage(Update update, long userId) {
-        String userText = update.getMessage().getText();
-        long chatId = update.getMessage().getChatId();
-        Integer threadId = update.getMessage().getMessageThreadId();
-
-        try {
-            String replyText = callChatGPT(userText);
-            log.info("ChatGPT responded to user {} with {} characters", userId, replyText.length());
-
-            try {
-                messageRepository.save(new LoggedMessage(userId, chatId, userText, replyText));
-            } catch (MessagePersistenceException ex) {
-                log.warn("Failed to persist message for user {} in chat {}: {}", userId, chatId, ex.getMessage(), ex);
-            }
-
-            sendMessage(chatId, threadId, replyText);
-        } catch (Exception e) {
-            sendMessage(chatId, threadId, "[Error] Failed to process message: " + e.getMessage());
-            log.error("Failed to handle general message for user {}: {}", userId, e.getMessage(), e);
-        }
     }
 
     //TODO: this likely should and could be refactored into a subclass, of course this would make some things easier.
@@ -470,6 +384,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         return callChatGPT(List.of(new ConversationMessage("user", safePrompt)));
     }
 
+    //TODO: turn this into a largely self contained subclass. 
     /**
      * Calls the configured OpenAI chat-completions endpoint using the supplied conversation history.
      *
@@ -553,9 +468,6 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
             resolvedTicketFormatter = null;
         }
         this.ticketFormatter = resolvedTicketFormatter;
-        this.ticketHandler = resolvedTicketService != null && resolvedTicketFormatter != null
-                ? new TicketHandler(resolvedTicketService, resolvedTicketFormatter)
-                : null;
 
         TranscriptionService resolvedTranscription;
         if (builder.transcriptionEnabled) {
@@ -587,9 +499,10 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         this.messageRepository = resolvedMessageRepository;
 
         this.conversationContextService = new ConversationContextService(this.messageRepository);
-        this.genericBotModule = new GenericBotModule(this.messageRepository, this.conversationContextService);
-
-        registerDefaultCommands();
+        this.modules = initialiseModules(resolvedTicketService, resolvedTicketFormatter,
+                resolvedTranscription, this.transcriptionFormatter);
+        log.info("Initialised {} modules", modules.size());
+        registerModuleCommands();
         log.info("TelegramBot registered {} command handlers", commands.size());
     }
 

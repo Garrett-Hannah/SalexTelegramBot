@@ -54,6 +54,11 @@ public class ConversationContextService {
         List<ConversationMessage> request = new ArrayList<>(snapshot.size() + 1);
         request.addAll(snapshot);
         request.add(new ConversationMessage("user", userText));
+        log.debug("Prepared {} context messages ({} prior) for chat {}, user {}",
+                request.size(),
+                snapshot.size(),
+                chatId,
+                userId);
         return request;
     }
 
@@ -68,6 +73,10 @@ public class ConversationContextService {
         history.seedIfNecessary(() -> loadFromRepository(chatId, userId));
         history.append(new ConversationMessage("user", userText));
         history.append(new ConversationMessage("assistant", assistantReply));
+        log.debug("Recorded exchange for chat {}, user {}; context now holds {} messages",
+                chatId,
+                userId,
+                history.size());
     }
 
     /**
@@ -165,6 +174,12 @@ public class ConversationContextService {
             messages.addLast(message);
             while (messages.size() > maxEntries) {
                 messages.removeFirst();
+            }
+        }
+
+        private int size() {
+            synchronized (this) {
+                return messages.size();
             }
         }
     }

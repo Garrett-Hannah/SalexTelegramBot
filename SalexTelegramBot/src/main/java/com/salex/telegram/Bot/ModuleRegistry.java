@@ -18,6 +18,7 @@ import java.util.stream.Stream;
  * Provides lookup facilities by module type while preserving deterministic dispatch order.
  */
 public final class ModuleRegistry {
+
     private static final Logger log = LoggerFactory.getLogger(ModuleRegistry.class);
 
     private final List<TelegramBotModule> orderedModules = new ArrayList<>();

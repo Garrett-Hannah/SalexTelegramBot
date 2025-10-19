@@ -77,7 +77,7 @@ class TranscriptionCommandHandlerTest {
         private final List<String> sentMessages = new ArrayList<>();
 
         RecordingBotSalex(TranscriptionService service, TranscriptionMessageFormatter formatter) {
-            super("token", "bot", null, null, null, service, formatter, null);
+            super("token", "bot", null, null, null, service, formatter, null, conversation -> "stub", null);
         }
 
         @Override
@@ -86,7 +86,7 @@ class TranscriptionCommandHandlerTest {
         }
 
         @Override
-        public void sendMessage(long chatId, String text) {
+        public void sendMessage(long chatId, Integer threadId, String text) {
             sentMessages.add(text);
         }
     }

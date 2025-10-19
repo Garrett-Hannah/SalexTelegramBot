@@ -260,10 +260,6 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         sendChatTyping(chatId, null);
     }
 
-    public static SalexTelegramBotBuilder builder() {
-        return new SalexTelegramBotBuilder();
-    }
-
     @PreDestroy
     public void shutdown() {
         if (connectionProvider instanceof AutoCloseable closable) {

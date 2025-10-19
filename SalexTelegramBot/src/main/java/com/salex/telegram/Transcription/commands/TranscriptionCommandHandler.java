@@ -4,7 +4,7 @@ import com.salex.telegram.Bot.SalexTelegramBot;
 import com.salex.telegram.Transcription.TranscriptionException;
 import com.salex.telegram.Transcription.TranscriptionResult;
 import com.salex.telegram.Transcription.TranscriptionService;
-import com.salex.telegram.Bot.CommandHandler;
+import com.salex.telegram.modules.CommandHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.objects.Message;

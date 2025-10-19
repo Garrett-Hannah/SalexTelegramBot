@@ -1,5 +1,6 @@
-package com.salex.telegram.Bot;
+package com.salex.telegram.modules;
 
+import com.salex.telegram.Bot.SalexTelegramBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 /**
@@ -11,7 +12,7 @@ public interface CommandHandler {
      *
      * @return the command keyword recognised by the bot
      */
-    String getName(); // eg /menu, /ticket etc...
+    String getName();
 
     /**
      * Describes the behaviour of the command for help menus.

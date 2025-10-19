@@ -2,6 +2,8 @@ package com.salex.telegram.Bot;
 
 import com.salex.telegram.Users.UserRecord;
 import com.salex.telegram.Users.UserService;
+import com.salex.telegram.modules.CommandHandler;
+import com.salex.telegram.modules.ModuleRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.objects.Message;

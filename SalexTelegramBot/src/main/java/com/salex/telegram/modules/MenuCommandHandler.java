@@ -1,5 +1,6 @@
-package com.salex.telegram.Bot;
+package com.salex.telegram.modules;
 
+import com.salex.telegram.Bot.SalexTelegramBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.Map;
@@ -19,25 +20,16 @@ public class MenuCommandHandler implements CommandHandler {
         this.commandHandlers = commandHandlers;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getName() {
         return "/menu";
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getDescription() {
         return "Show the available bot commands.";
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void handle(Update update, SalexTelegramBot bot, long userId) {
         if (!update.hasMessage() || !update.getMessage().hasText()) {

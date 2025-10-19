@@ -1,4 +1,4 @@
-package com.salex.telegram.Bot;
+package com.salex.telegram.modules;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

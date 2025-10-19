@@ -21,6 +21,7 @@ import com.salex.telegram.Ticketing.OnServer.ServerTicketRepository;
 import com.salex.telegram.Ticketing.OnServer.ServerTicketSessionManager;
 import com.salex.telegram.Ticketing.TicketService;
 import com.salex.telegram.Ticketing.commands.TicketMessageFormatter;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -261,5 +262,16 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
 
     public static SalexTelegramBotBuilder builder() {
         return new SalexTelegramBotBuilder();
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        if (connectionProvider instanceof AutoCloseable closable) {
+            try {
+                closable.close();
+            } catch (Exception ex) {
+                log.debug("Failed to close connection provider cleanly: {}", ex.getMessage());
+            }
+        }
     }
 }

@@ -28,3 +28,11 @@
 - `/menu` – Enumerates registered commands.
 - `/ticket new` – Creates a draft ticket and opens a session.
 - `/ticket list|<id>|close` – Operates on persisted tickets via the repository.
+- Modules own their command registrations (`TicketingBotModule`, `TranscriptionBotModule`, `ConversationalRelayModule`), while the bot aggregates them to drive `/menu`.
+
+## Recent Bot Reliability & Context Notes
+- Multi-line user messages now reach OpenAI intact; `OpenAIChatCompletionClient` builds the JSON payload with Gson objects to avoid string-formatting issues.
+- Database access flows through `Database.ConnectionProvider`; `RefreshingConnectionProvider` automatically re-establishes JDBC sessions when a handle is closed or times out.
+- `ServerTicketRepository`, `ServerTicketSessionManager`, and `Messaging.JdbcMessageRepository` now request connections per operation to leverage the provider.
+- Manual regression: terminate the bot’s backend connection (e.g., via Supabase `pg_terminate_backend`) and send a message—the provider should reconnect transparently.
+- Conversation memory model: persist turns in `messages`, load the latest N entries (or combine with stored summaries) before invoking `ChatCompletionClient#complete` to recreate chat context.

@@ -46,7 +46,7 @@ Salex Telegram Bot is a Java 23 Telegram bot that combines a conversational assi
 - **Apache Maven:** 3.9 or newer.
 - **PostgreSQL:** Optional for persistence, but recommended for production runs.
 - **Telegram Bot Token:** Register a bot via [@BotFather](https://core.telegram.org/bots#botfather).
-- **OpenAI API Key:** Required for the conversational fallback handled in `TelegramBot#callChatGPT`.
+- **OpenAI API Key:** Required for the conversational fallback handled by `OpenAIChatCompletionClient`.
 
 ---
 
@@ -60,6 +60,7 @@ export JDBC_URL="jdbc:postgresql://localhost:5432/telegram_bot"
 export DB_USER="bot_user"
 export DB_PASS="super-secret-password"
 export OPENAI_API_KEY="sk-..."          # Required for ChatGPT responses
+export OPENAI_CHAT_MODEL="gpt-4o-mini"  # Optional override for the OpenAI model
 ```
 
 `JDBC_URL`, `DB_USER`, and `DB_PASS` are optional—set them only when persisting users and messages. When any of them are missing, initialise the bot manually with a `null` connection to rely solely on in-memory ticket backing.
@@ -167,8 +168,9 @@ JUnit 5 and AssertJ are available for both unit and integration testing of comma
 ### Extending the Bot
 - **Persisting tickets:** Replace `InMemoryTicketRepository` with a JDBC-backed repository implementation and inject it into `TelegramBot` at construction time.
 - **Session management:** Swap `InMemoryTicketSessionManager` for a Redis or database-backed manager to support multi-instance deployments.
-- **New commands:** Implement `CommandHandler`, register it in `TelegramBot#registerDefaultCommands`, and provide a description so it appears automatically in `/menu` output.
-- **Alternative LLM providers:** Replace `callChatGPT` with your preferred HTTP integration while keeping the conversational flow unchanged.
+- **New commands:** Implement a `CommandHandler`, expose it via `TelegramBotModule#getCommands`, and include the module in the bot so the command surfaces automatically in `/menu`.
+- **Modules:** Add feature bundles through the `ModuleRegistry`; `SalexTelegramBot#getModule(...)` lets you reach the live instance when advanced coordination is needed.
+- **Alternative LLM providers:** Supply your own `ChatCompletionClient` implementation to the bot builder to swap in a different model or vendor without touching the relay module.
 
 ---
 

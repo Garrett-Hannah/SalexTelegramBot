@@ -1,16 +1,16 @@
 package com.salex.telegram.config;
 
-import com.salex.telegram.AiPackage.ChatCompletionClient;
-import com.salex.telegram.Bot.SalexTelegramBot;
-import com.salex.telegram.Database.ConnectionFactory;
-import com.salex.telegram.Database.ConnectionProvider;
-import com.salex.telegram.Database.RefreshingConnectionProvider;
-import com.salex.telegram.Messaging.MessageRepository;
-import com.salex.telegram.Ticketing.TicketService;
-import com.salex.telegram.Ticketing.commands.TicketMessageFormatter;
-import com.salex.telegram.Transcription.TranscriptionService;
-import com.salex.telegram.Transcription.commands.TranscriptionMessageFormatter;
-import com.salex.telegram.Users.UserService;
+import com.salex.telegram.ai.ChatCompletionClient;
+import com.salex.telegram.bot.SalexTelegramBot;
+import com.salex.telegram.database.ConnectionFactory;
+import com.salex.telegram.database.ConnectionProvider;
+import com.salex.telegram.database.RefreshingConnectionProvider;
+import com.salex.telegram.messaging.MessageRepository;
+import com.salex.telegram.ticketing.TicketService;
+import com.salex.telegram.modules.ticketing.commands.TicketMessageFormatter;
+import com.salex.telegram.transcription.TranscriptionService;
+import com.salex.telegram.modules.transcription.commands.TranscriptionMessageFormatter;
+import com.salex.telegram.users.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;

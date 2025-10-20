@@ -1,16 +1,14 @@
 package com.salex.telegram.modules;
 
-import com.salex.telegram.AiPackage.ChatCompletionClient;
-import com.salex.telegram.AiPackage.ConversationContextService;
-import com.salex.telegram.Messaging.MessageRepository;
-
-import com.salex.telegram.Transcription.TranscriptionService;
-import com.salex.telegram.Transcription.commands.TranscriptionMessageFormatter;
-import com.salex.telegram.Ticketing.TicketService;
-
-import com.salex.telegram.Ticketing.commands.TicketMessageFormatter;
+import com.salex.telegram.ai.ChatCompletionClient;
+import com.salex.telegram.ai.ConversationContextService;
+import com.salex.telegram.messaging.MessageRepository;
 import com.salex.telegram.modules.ticketing.TicketingBotModule;
+import com.salex.telegram.modules.ticketing.commands.TicketMessageFormatter;
 import com.salex.telegram.modules.transcription.TranscriptionBotModule;
+import com.salex.telegram.modules.transcription.commands.TranscriptionMessageFormatter;
+import com.salex.telegram.ticketing.TicketService;
+import com.salex.telegram.transcription.TranscriptionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,13 +23,13 @@ import java.util.Map;
 public final class ModuleBootstrapper {
     private static final Logger log = LoggerFactory.getLogger(ModuleBootstrapper.class);
 
-    public ModuleBootstrapperResult bootstrap (TicketService ticketService,
-                                               TicketMessageFormatter ticketFormatter,
-                                               TranscriptionService transcriptionService,
-                                               TranscriptionMessageFormatter transcriptionFormatter,
-                                               MessageRepository messageRepository,
-                                               ConversationContextService conversationContextService,
-                                               ChatCompletionClient chatCompletionClient) {
+    public ModuleBootstrapperResult bootstrap(TicketService ticketService,
+                                              TicketMessageFormatter ticketFormatter,
+                                              TranscriptionService transcriptionService,
+                                              TranscriptionMessageFormatter transcriptionFormatter,
+                                              MessageRepository messageRepository,
+                                              ConversationContextService conversationContextService,
+                                              ChatCompletionClient chatCompletionClient) {
         ModuleRegistry registry = new ModuleRegistry();
         if (ticketService != null && ticketFormatter != null) {
             registry.register(new TicketingBotModule(ticketService, ticketFormatter));

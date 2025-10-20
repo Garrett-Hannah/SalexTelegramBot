@@ -1,13 +1,13 @@
 package com.salex.telegram.modules.ticketing;
 
-import com.salex.telegram.Bot.SalexTelegramBot;
+import com.salex.telegram.bot.SalexTelegramBot;
 import com.salex.telegram.modules.CommandHandler;
 import com.salex.telegram.modules.TelegramBotModule;
-import com.salex.telegram.Ticketing.Ticket;
-import com.salex.telegram.Ticketing.TicketDraft;
-import com.salex.telegram.Ticketing.TicketService;
-import com.salex.telegram.Ticketing.commands.TicketCommandHandler;
-import com.salex.telegram.Ticketing.commands.TicketMessageFormatter;
+import com.salex.telegram.ticketing.Ticket;
+import com.salex.telegram.ticketing.TicketDraft;
+import com.salex.telegram.ticketing.TicketService;
+import com.salex.telegram.modules.ticketing.commands.TicketCommandHandler;
+import com.salex.telegram.modules.ticketing.commands.TicketMessageFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.objects.Message;

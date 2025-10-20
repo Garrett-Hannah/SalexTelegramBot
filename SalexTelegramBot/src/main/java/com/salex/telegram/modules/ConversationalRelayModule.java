@@ -1,11 +1,11 @@
 package com.salex.telegram.modules;
 
-import com.salex.telegram.AiPackage.ChatCompletionClient;
-import com.salex.telegram.AiPackage.ConversationContextService;
-import com.salex.telegram.AiPackage.ConversationMessage;
-import com.salex.telegram.Bot.SalexTelegramBot;
-import com.salex.telegram.Messaging.LoggedMessage;
-import com.salex.telegram.Messaging.MessageRepository;
+import com.salex.telegram.ai.ChatCompletionClient;
+import com.salex.telegram.ai.ConversationContextService;
+import com.salex.telegram.ai.ConversationMessage;
+import com.salex.telegram.bot.SalexTelegramBot;
+import com.salex.telegram.messaging.LoggedMessage;
+import com.salex.telegram.messaging.MessageRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.objects.Update;

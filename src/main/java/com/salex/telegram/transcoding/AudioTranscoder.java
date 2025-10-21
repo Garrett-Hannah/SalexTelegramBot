@@ -15,6 +15,7 @@ import java.util.Objects;
 /**
  * Normalises Telegram audio payloads to a Whisper-friendly format using FFmpeg.
  */
+//TODO maybe convert to a Service? idk is that right
 public class AudioTranscoder {
     private static final String TARGET_EXTENSION = ".wav";
     private static final String TARGET_MIME = "audio/wav";

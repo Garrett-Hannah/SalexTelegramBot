@@ -1,6 +1,7 @@
 package com.salex.telegram.modules;
 
 import com.salex.telegram.bot.SalexTelegramBot;
+import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.Map;
@@ -9,7 +10,11 @@ import java.util.Map;
  * Represents a cohesive feature area of the bot. Modules can expose command handlers
  * and optionally consume non-command updates when {@link #canHandle(Update, long)} returns true.
  */
-public interface TelegramBotModule {
+
+//TODO: make this into single bot with some extra funcitons etc.
+    //Then, make a command.
+@Service
+public interface MessagingHandlerService {
     /**
      * Determines whether the module wants to handle the current update.
      *

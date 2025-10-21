@@ -8,6 +8,7 @@ import com.salex.telegram.messaging.LoggedMessage;
 import com.salex.telegram.messaging.MessageRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.List;
@@ -17,15 +18,17 @@ import java.util.Objects;
 /**
  * Fallback conversational module that relays free-form chat to the LLM while persisting history.
  */
-public class ConversationalRelayModule implements TelegramBotModule {
-    private static final Logger log = LoggerFactory.getLogger(ConversationalRelayModule.class);
+@Service
+public class ConversationalRelayService implements MessagingHandlerService {
+    private static final Logger log = LoggerFactory.getLogger(ConversationalRelayService.class);
+
     private final MessageRepository messageRepository;
     private final ConversationContextService conversationContextService;
     private final ChatCompletionClient chatCompletionClient;
 
-    ConversationalRelayModule(MessageRepository messageRepository,
-                              ConversationContextService conversationContextService,
-                              ChatCompletionClient chatCompletionClient) {
+    ConversationalRelayService(MessageRepository messageRepository,
+                               ConversationContextService conversationContextService,
+                               ChatCompletionClient chatCompletionClient) {
         this.messageRepository = Objects.requireNonNull(messageRepository);
         this.conversationContextService = Objects.requireNonNull(conversationContextService);
         this.chatCompletionClient = Objects.requireNonNull(chatCompletionClient);

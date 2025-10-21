@@ -5,8 +5,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.context.annotation.Bean;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -15,6 +17,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
  * Spring Boot application entry point that registers the Telegram bot once the context is ready.
  */
 @SpringBootApplication(exclude = DataSourceAutoConfiguration.class)
+@ConfigurationPropertiesScan("com.salex.telegram.config")
 public class SalexTelegramBotApplication {
     private static final Logger log = LoggerFactory.getLogger(SalexTelegramBotApplication.class);
 

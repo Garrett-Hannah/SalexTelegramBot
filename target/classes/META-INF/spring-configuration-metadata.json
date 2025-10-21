@@ -6,6 +6,11 @@
       "sourceType": "com.salex.telegram.config.DatabaseProperties"
     },
     {
+      "name": "bot.openai",
+      "type": "com.salex.telegram.config.OpenAiConfiguration",
+      "sourceType": "com.salex.telegram.config.OpenAiConfiguration"
+    },
+    {
       "name": "telegram.bot",
       "type": "com.salex.telegram.config.TelegramBotProperties",
       "sourceType": "com.salex.telegram.config.TelegramBotProperties"

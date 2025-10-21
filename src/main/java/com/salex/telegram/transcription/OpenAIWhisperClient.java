@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.salex.telegram.transcoding.AudioResource;
+import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -20,7 +21,10 @@ import java.util.UUID;
 /**
  * Transcription client that targets OpenAI's Whisper API.
  */
+@Service
+
 public class OpenAIWhisperClient implements TranscriptionClient {
+
     private final HttpClient httpClient;
     private final String apiKey;
     private final String model;

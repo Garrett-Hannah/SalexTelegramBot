@@ -2,7 +2,7 @@ package com.salex.telegram.modules.transcription;
 
 import com.salex.telegram.bot.SalexTelegramBot;
 import com.salex.telegram.modules.CommandHandler;
-import com.salex.telegram.modules.TelegramBotModule;
+import com.salex.telegram.modules.MessagingHandlerService;
 import com.salex.telegram.transcription.TranscriptionException;
 import com.salex.telegram.transcription.TranscriptionResult;
 import com.salex.telegram.transcription.TranscriptionService;
@@ -10,6 +10,7 @@ import com.salex.telegram.modules.transcription.commands.TranscriptionCommandHan
 import com.salex.telegram.modules.transcription.commands.TranscriptionMessageFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
@@ -19,15 +20,16 @@ import java.util.Objects;
 /**
  * Handles automatic audio transcription and exposes the `/transcribe` command.
  */
-public class TranscriptionBotModule implements TelegramBotModule {
-    private static final Logger log = LoggerFactory.getLogger(TranscriptionBotModule.class);
+@Service
+public class TranscriptionHandlerService implements MessagingHandlerService {
+    private static final Logger log = LoggerFactory.getLogger(TranscriptionHandlerService.class);
 
     private final TranscriptionService transcriptionService;
     private final TranscriptionMessageFormatter formatter;
     private final CommandHandler commandHandler;
 
-    public TranscriptionBotModule(TranscriptionService transcriptionService,
-                                  TranscriptionMessageFormatter formatter) {
+    public TranscriptionHandlerService(TranscriptionService transcriptionService,
+                                       TranscriptionMessageFormatter formatter) {
         this.transcriptionService = Objects.requireNonNull(transcriptionService, "transcriptionService");
         this.formatter = Objects.requireNonNull(formatter, "formatter");
         this.commandHandler = new TranscriptionCommandHandler(transcriptionService, formatter);

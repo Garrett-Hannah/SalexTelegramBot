@@ -9,3 +9,8 @@ bot:
     username: ${DB_USER:}
     password: ${DB_PASS:}
     validation-timeout-seconds: ${DB_VALIDATION_TIMEOUT_SECONDS:2}
+
+  openai:
+    api-key: ${OPENAI_API_KEY}
+    whisper-model: gpt-4o-transcribe
+    endpoint: https://api.openai.com/v1/audio/transcriptions

@@ -3,7 +3,6 @@ package com.salex.telegram.bot;
 import com.salex.telegram.users.UserRecord;
 import com.salex.telegram.users.UserService;
 import com.salex.telegram.modules.CommandHandler;
-import com.salex.telegram.modules.ModuleRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -17,19 +16,17 @@ import java.util.Map;
 /**
  * Centralises routing of incoming updates to command handlers or modules.
  */
+//TODO: maybe set into a component/service?
 final class UpdateRouter {
     private static final Logger log = LoggerFactory.getLogger(UpdateRouter.class);
 
-    private final ModuleRegistry moduleRegistry;
     private final Map<String, CommandHandler> commands;
     private final UserService userService;
     private final TelegramSender sender;
 
-    UpdateRouter(ModuleRegistry moduleRegistry,
-                 Map<String, CommandHandler> commands,
+    UpdateRouter(Map<String, CommandHandler> commands,
                  UserService userService,
                  TelegramSender sender) {
-        this.moduleRegistry = moduleRegistry;
         this.commands = commands;
         this.userService = userService;
         this.sender = sender;
@@ -72,14 +69,6 @@ final class UpdateRouter {
             dispatchCommand(update, bot, userId, chatId, threadId);
             return;
         }
-
-        moduleRegistry.stream()
-                .filter(module -> module.canHandle(update, userId))
-                .findFirst()
-                .ifPresentOrElse(module -> {
-                    log.debug("Routing update in chat {} to module {}", chatId, module.getClass().getSimpleName());
-                    module.handle(update, bot, userId);
-                }, () -> log.debug("No module accepted update in chat {} from user {}", chatId, userId));
     }
 
     private void dispatchCommand(Update update,

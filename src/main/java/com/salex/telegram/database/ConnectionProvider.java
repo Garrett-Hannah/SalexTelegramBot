@@ -15,4 +15,7 @@ public interface ConnectionProvider {
      * @throws SQLException if a connection cannot be obtained
      */
     Connection getConnection() throws SQLException;
+
+    void close();
+
 }

@@ -1,22 +1,16 @@
 package com.salex.telegram.config;
 
-import com.salex.telegram.ai.ChatCompletionClient;
-import com.salex.telegram.bot.SalexTelegramBot;
+import com.salex.telegram.config.condition.JdbcConnectionAvailableCondition;
 import com.salex.telegram.database.ConnectionFactory;
 import com.salex.telegram.database.ConnectionProvider;
 import com.salex.telegram.database.RefreshingConnectionProvider;
-import com.salex.telegram.messaging.MessageRepository;
-import com.salex.telegram.ticketing.TicketService;
-import com.salex.telegram.modules.ticketing.commands.TicketMessageFormatter;
-import com.salex.telegram.transcription.TranscriptionService;
-import com.salex.telegram.modules.transcription.commands.TranscriptionMessageFormatter;
-import com.salex.telegram.users.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Conditional;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
@@ -25,7 +19,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 /**
- * Configures the Telegram bot and its optional dependencies for the Spring context.
+ * Configures Telegram infrastructure beans such as the bots API and optional JDBC connection provider.
  */
 @Configuration
 @EnableConfigurationProperties({TelegramBotProperties.class, DatabaseProperties.class})
@@ -37,57 +31,31 @@ public class TelegramBotConfiguration {
         return new TelegramBotsApi(DefaultBotSession.class);
     }
 
-    @Bean
-    SalexTelegramBot salexTelegramBot(TelegramBotProperties botProperties,
-                                      DatabaseProperties databaseProperties,
-                                      ObjectProvider<TicketService> ticketServices,
-                                      ObjectProvider<TicketMessageFormatter> ticketFormatters,
-                                      ObjectProvider<TranscriptionService> transcriptionServices,
-                                      ObjectProvider<TranscriptionMessageFormatter> transcriptionFormatters,
-                                      ObjectProvider<MessageRepository> messageRepositories,
-                                      ObjectProvider<ChatCompletionClient> chatCompletionClients,
-                                      ObjectProvider<UserService> userServices) {
-        ConnectionProvider connectionProvider = createConnectionProvider(databaseProperties);
-
-        return new SalexTelegramBot(
-                botProperties.getToken(),
-                botProperties.getUsername(),
-                connectionProvider,
-                ticketServices.getIfAvailable(),
-                ticketFormatters.getIfAvailable(),
-                transcriptionServices.getIfAvailable(),
-                transcriptionFormatters.getIfAvailable(),
-                messageRepositories.getIfAvailable(),
-                chatCompletionClients.getIfAvailable(),
-                userServices.getIfAvailable()
-        );
+    @Bean(destroyMethod = "close")
+    @ConditionalOnProperty(prefix = "bot.database", name = "jdbc-url")
+    @Conditional(JdbcConnectionAvailableCondition.class)
+    ConnectionProvider connectionProvider(DatabaseProperties properties) {
+        return createConnectionProvider(properties);
     }
 
     private ConnectionProvider createConnectionProvider(DatabaseProperties properties) {
-        return properties.jdbcUrl()
-                .map(url -> {
-                    ConnectionFactory factory = () -> DriverManager.getConnection(
-                            url,
-                            properties.getUsername(),
-                            properties.getPassword()
-                    );
-                    RefreshingConnectionProvider provider = new RefreshingConnectionProvider(
-                            factory,
-                            properties.getValidationTimeoutSeconds()
-                    );
-                    try {
-                        provider.getConnection();
-                        log.info("Database connection established for bot startup");
-                        return provider;
-                    } catch (SQLException ex) {
-                        log.warn("Failed to establish database connection; bot will run with in-memory storage: {}", ex.getMessage());
-                        provider.close();
-                        return null;
-                    }
-                })
-                .orElseGet(() -> {
-                    log.warn("JDBC URL not provided; bot will run with in-memory storage");
-                    return null;
-                });
+        String url = properties.jdbcUrl().orElseThrow(() ->
+                new IllegalStateException("bot.database.jdbc-url must be provided when the connection provider bean is created"));
+        ConnectionFactory factory = () -> DriverManager.getConnection(
+                url,
+                properties.getUsername(),
+                properties.getPassword()
+        );
+        RefreshingConnectionProvider provider = new RefreshingConnectionProvider(
+                factory,
+                properties.getValidationTimeoutSeconds()
+        );
+        try {
+            provider.getConnection();
+            log.info("Database connection established for bot startup");
+        } catch (SQLException ex) {
+            log.warn("Database connection validation failed after initial check: {}", ex.getMessage());
+        }
+        return provider;
     }
 }

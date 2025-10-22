@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * Coordinates validation, persistence and command messaging for tickets.
+ * Coordinates validation and persistence for ticket-related workflows.
  */
 public class TicketService {
     private static final Logger log = LoggerFactory.getLogger(TicketService.class);

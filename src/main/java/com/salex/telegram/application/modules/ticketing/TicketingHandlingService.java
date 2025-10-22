@@ -19,8 +19,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Encapsulates everything related to ticket workflows: registers the `/ticket` command and
- * continues multi-step ticket drafts when users respond with additional details.
+ * Continues multi-step ticket drafts by consuming free-form replies whenever a draft session is active.
+ * Delegates persistence and validation to {@link TicketService} and surfaces user feedback via
+ * {@link TicketMessageFormatter}.
  */
 @Service
 public class TicketingHandlingService implements UpdateHandlingService {

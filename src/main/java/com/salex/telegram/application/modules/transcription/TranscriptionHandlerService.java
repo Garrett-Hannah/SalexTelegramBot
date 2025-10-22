@@ -18,7 +18,8 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import java.util.Map;
 
 /**
- * Handles automatic audio transcription and exposes the `/transcribe` command.
+ * Automatically transcribes audio-capable updates so users receive text without invoking a command.
+ * Works alongside {@link TranscriptionCommandHandler} for explicit `/transcribe` requests.
  */
 @Service
 public class TranscriptionHandlerService implements UpdateHandlingService {

@@ -1,4 +1,4 @@
-package com.salex.telegram.Ticketing;
+package com.salex.telegram.ticketing;
 
 import org.junit.jupiter.api.Test;
 

@@ -1,10 +1,10 @@
-package com.salex.telegram.Ticketing;
+package com.salex.telegram.ticketing;
 
 import com.salex.telegram.Bot.CommandHandler;
 import com.salex.telegram.Bot.SalexTelegramBot;
 import com.salex.telegram.Bot.TelegramBotModule;
-import com.salex.telegram.Ticketing.commands.TicketCommandHandler;
-import com.salex.telegram.Ticketing.commands.TicketMessageFormatter;
+import com.salex.telegram.ticketing.commands.TicketCommandHandler;
+import com.salex.telegram.ticketing.commands.TicketMessageFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -14,8 +14,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-import com.salex.telegram.Ticketing.Ticket;
-import com.salex.telegram.Ticketing.TicketDraft;
+import com.salex.telegram.ticketing.Ticket;
+import com.salex.telegram.ticketing.TicketDraft;
 
 /**
  * Encapsulates everything related to ticket workflows: registers the `/ticket` command and

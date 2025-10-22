@@ -1,4 +1,4 @@
-package com.salex.telegram.transcription.infrastructure;
+package com.salex.telegram.Transcription.infrastructure;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -9,6 +9,7 @@ import com.salex.telegram.transcription.domain.TranscriptionResult;
 import com.salex.telegram.transcription.infrastructure.transcoding.AudioResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 

@@ -1,9 +1,9 @@
-package com.salex.telegram.Ticketing.commands;
+package com.salex.telegram.ticketing.commands;
 
-import com.salex.telegram.Ticketing.Ticket;
-import com.salex.telegram.Ticketing.TicketDraft;
-import com.salex.telegram.Ticketing.TicketPriority;
-import com.salex.telegram.Ticketing.TicketStatus;
+import com.salex.telegram.ticketing.Ticket;
+import com.salex.telegram.ticketing.TicketDraft;
+import com.salex.telegram.ticketing.TicketPriority;
+import com.salex.telegram.ticketing.TicketStatus;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

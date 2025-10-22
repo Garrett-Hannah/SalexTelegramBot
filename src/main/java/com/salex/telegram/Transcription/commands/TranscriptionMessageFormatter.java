@@ -1,7 +1,5 @@
 package com.salex.telegram.Transcription.commands;
 
-import com.salex.telegram.Transcription.TranscriptionResult;
-
 /**
  * Formats user-facing messages for transcription flows.
  */

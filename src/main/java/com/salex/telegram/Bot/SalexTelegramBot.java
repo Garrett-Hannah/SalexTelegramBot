@@ -5,21 +5,16 @@ import com.salex.telegram.AiPackage.ConversationContextService;
 import com.salex.telegram.AiPackage.OpenAIChatCompletionClient;
 import com.salex.telegram.Database.ConnectionProvider;
 import com.salex.telegram.Database.StaticConnectionProvider;
-import com.salex.telegram.Transcription.OpenAIWhisperClient;
-import com.salex.telegram.Transcription.TelegramAudioDownloader;
-import com.salex.telegram.Transcription.TranscriptionService;
-import com.salex.telegram.Transcription.TranscriptionBotModule;
-import com.salex.telegram.Transcription.commands.TranscriptionMessageFormatter;
+import com.salex.telegram.ticketing.TicketingBotModule;
+import com.salex.telegram.ticketing.commands.TicketMessageFormatter;
+import com.salex.telegram.ticketing.application.TicketService;
 import com.salex.telegram.Messaging.JdbcMessageRepository;
 import com.salex.telegram.Messaging.MessageRepository;
 import com.salex.telegram.Messaging.NoopMessageRepository;
-import com.salex.telegram.Ticketing.InMemory.InMemoryTicketRepository;
-import com.salex.telegram.Ticketing.InMemory.InMemoryTicketSessionManager;
-import com.salex.telegram.Ticketing.OnServer.ServerTicketRepository;
-import com.salex.telegram.Ticketing.OnServer.ServerTicketSessionManager;
-import com.salex.telegram.Ticketing.TicketService;
-import com.salex.telegram.Ticketing.TicketingBotModule;
-import com.salex.telegram.Ticketing.commands.TicketMessageFormatter;
+import com.salex.telegram.ticketing.infrastructure.memory.InMemoryTicketRepository;
+import com.salex.telegram.ticketing.infrastructure.memory.InMemoryTicketSessionManager;
+import com.salex.telegram.ticketing.infrastructure.server.ServerTicketRepository;
+import com.salex.telegram.ticketing.infrastructure.server.ServerTicketSessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -46,7 +41,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(SalexTelegramBot.class);
     private final String username;
     private final ConnectionProvider connectionProvider;
-    private final TicketService ticketService;
+    private final com.salex.telegram.ticketing.application.TicketService ticketService;
     private final TicketMessageFormatter ticketFormatter;
     private final TranscriptionService transcriptionService;
     private final TranscriptionMessageFormatter transcriptionFormatter;
@@ -100,7 +95,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
      * @param chatCompletionClient    client used to obtain language model responses (may be {@code null} to auto-configure)
      */
     public SalexTelegramBot(String token, String username, ConnectionProvider connectionProvider,
-                            TicketService ticketService,
+                            com.salex.telegram.ticketing.application.TicketService ticketService,
                             TicketMessageFormatter ticketFormatter,
                             TranscriptionService transcriptionService,
                             TranscriptionMessageFormatter transcriptionFormatter,
@@ -135,7 +130,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
         //TODO: set up modules so that itll also note how many modules there are.
     }
 
-    private static TicketService createDefaultTicketService(ConnectionProvider connectionProvider) {
+    private static com.salex.telegram.ticketing.application.TicketService createDefaultTicketService(ConnectionProvider connectionProvider) {
         if (connectionProvider != null) {
             return new TicketService(new ServerTicketRepository(connectionProvider), new ServerTicketSessionManager(connectionProvider));
         }

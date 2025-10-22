@@ -2,8 +2,6 @@ package com.salex.telegram.Transcription.commands;
 
 import com.salex.telegram.Bot.SalexTelegramBot;
 import com.salex.telegram.Transcoding.AudioResource;
-import com.salex.telegram.Transcription.TranscriptionResult;
-import com.salex.telegram.Transcription.TranscriptionService;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.telegram.telegrambots.meta.api.objects.Message;

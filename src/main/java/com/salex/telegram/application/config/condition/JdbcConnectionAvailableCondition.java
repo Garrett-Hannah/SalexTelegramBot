@@ -28,11 +28,14 @@ public class JdbcConnectionAvailableCondition extends SpringBootCondition {
             return ConditionOutcome.noMatch(message.because("bot.database.jdbc-url not set"));
         }
 
-        //TODO: FIND A WAY TO DO THIS PROPER, for now default to env vars.
-        //String username = context.getEnvironment().getProperty("bot.database.username");
-        //String password = context.getEnvironment().getProperty("bot.database.password");
-        String username = System.getenv("DB_USER");
-        String password = System.getenv("DB_PASS");
+        String username = firstNonBlank(
+                context.getEnvironment().getProperty("bot.database.username"),
+                System.getenv("DB_USER")
+        );
+        String password = firstNonBlank(
+                context.getEnvironment().getProperty("bot.database.password"),
+                System.getenv("DB_PASS")
+        );
 
         int timeout = context.getEnvironment().getProperty("bot.database.validation-timeout-seconds", Integer.class, 2);
         if (timeout > 0) {
@@ -59,5 +62,17 @@ public class JdbcConnectionAvailableCondition extends SpringBootCondition {
             return DriverManager.getConnection(jdbcUrl);
         }
         return DriverManager.getConnection(jdbcUrl, properties);
+    }
+
+    private String firstNonBlank(String... candidates) {
+        if (candidates == null) {
+            return null;
+        }
+        for (String candidate : candidates) {
+            if (StringUtils.hasText(candidate)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 }

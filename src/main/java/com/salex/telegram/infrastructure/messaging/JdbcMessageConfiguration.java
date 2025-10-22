@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
  * implementation depending on whether a {@link ConnectionProvider} is available.
  */
 @Configuration
-public class JdbcMessageConfig {
+public class JdbcMessageConfiguration {
 
     @Bean
     public MessageRepository messageRepository(ObjectProvider<ConnectionProvider> connectionProviders) {

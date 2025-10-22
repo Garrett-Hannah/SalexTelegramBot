@@ -6,6 +6,7 @@ import com.salex.telegram.conversation.ConversationMessage;
 import com.salex.telegram.infrastructure.messaging.LoggedMessage;
 import com.salex.telegram.infrastructure.messaging.MessageRepository;
 import com.salex.telegram.telegram.SalexTelegramBot;
+import com.salex.telegram.telegram.TelegramSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,7 @@ public class ConversationalRelayService implements MessagingHandlerService {
     private ConversationContextService conversationContextService;
     @Autowired
     private ChatCompletionClient chatCompletionClient;
+
 
     @Override
     public boolean canHandle(Update update, long userId) {

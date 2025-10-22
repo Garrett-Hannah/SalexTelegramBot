@@ -1,15 +1,19 @@
 package com.salex.telegram.telegram;
 
 import com.salex.telegram.application.modules.CommandHandler;
+import com.salex.telegram.application.modules.ConversationalRelayService;
+import com.salex.telegram.application.modules.MessagingHandlerService;
 import com.salex.telegram.user.UserRecord;
 import com.salex.telegram.user.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -23,13 +27,16 @@ final class UpdateRouter {
     private final Map<String, CommandHandler> commands;
     private final UserService userService;
     private final TelegramSender sender;
+    private final List<MessagingHandlerService> messagingHandlerServices;
 
     UpdateRouter(Map<String, CommandHandler> commands,
                  UserService userService,
-                 TelegramSender sender) {
+                 TelegramSender sender,
+                 List<MessagingHandlerService> handlerServiceList) {
         this.commands = commands;
         this.userService = userService;
         this.sender = sender;
+        this.messagingHandlerServices = handlerServiceList;
     }
 
     void route(Update update, SalexTelegramBot bot) {
@@ -65,10 +72,22 @@ final class UpdateRouter {
             return;
         }
 
-        if (!text.isEmpty() && text.startsWith("/")) {
+        if (text.startsWith("/")) {
             dispatchCommand(update, bot, userId, chatId, threadId);
             return;
         }
+
+
+        //TODO: make handler list into its own class allowing
+        //For higher prieirt of the stuff.
+        for(MessagingHandlerService handler : messagingHandlerServices){
+            if(handler.canHandle(update, userId))
+            {
+                handler.handle(update, bot, userId);
+                return;
+            }
+        }
+
     }
 
     private void dispatchCommand(Update update,

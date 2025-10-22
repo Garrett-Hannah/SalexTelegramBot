@@ -19,6 +19,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
         scanBasePackages = "com.salex.telegram",
         exclude = DataSourceAutoConfiguration.class
 )
+
 @ConfigurationPropertiesScan("com.salex.telegram.application.config")
 public class SalexTelegramBotApplication {
     private static final Logger log = LoggerFactory.getLogger(SalexTelegramBotApplication.class);

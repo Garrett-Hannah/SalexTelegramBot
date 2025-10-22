@@ -11,7 +11,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 /**
  * Small helper that encapsulates Telegram send/typing operations.
  */
-final class TelegramSender {
+public final class TelegramSender {
     private static final Logger log = LoggerFactory.getLogger(TelegramSender.class);
     private final TelegramLongPollingBot bot;
 
@@ -19,7 +19,7 @@ final class TelegramSender {
         this.bot = bot;
     }
 
-    void sendMessage(long chatId, Integer threadId, String text) {
+    public void sendMessage(long chatId, Integer threadId, String text) {
         SendMessage message = new SendMessage(Long.toString(chatId), text);
         if (threadId != null) {
             message.setMessageThreadId(threadId);
@@ -31,7 +31,7 @@ final class TelegramSender {
         }
     }
 
-    void sendChatTyping(long chatId, Integer threadId) {
+    public void sendChatTyping(long chatId, Integer threadId) {
         SendChatAction action = new SendChatAction();
         action.setChatId(Long.toString(chatId));
         action.setAction(ActionType.TYPING);

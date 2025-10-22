@@ -1,0 +1,9 @@
+com\salex\telegram\Transcription\TranscriptionException.class
+com\salex\telegram\Transcription\TranscriptionClient.class
+com\salex\telegram\Transcription\OpenAIWhisperClient.class
+com\salex\telegram\Transcription\commands\TranscriptionMessageFormatter.class
+com\salex\telegram\Transcription\TranscriptionService.class
+com\salex\telegram\Transcription\commands\TranscriptionCommandHandler.class
+com\salex\telegram\Transcription\TelegramAudioDownloader.class
+com\salex\telegram\Transcription\TranscriptionResult.class
+com\salex\telegram\Transcription\AudioResource.class

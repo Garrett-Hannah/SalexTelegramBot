@@ -5,6 +5,8 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.Map;
 
+
+//Question: does this need to be a service
 /**
  * Presents the list of available commands registered with the bot.
  */

@@ -1,7 +1,7 @@
 package com.salex.telegram.application.modules.ticketing;
 
 import com.salex.telegram.application.modules.CommandHandler;
-import com.salex.telegram.application.modules.MessagingHandlerService;
+import com.salex.telegram.application.modules.UpdateHandlingService;
 import com.salex.telegram.telegram.SalexTelegramBot;
 import com.salex.telegram.ticketing.application.TicketService;
 import com.salex.telegram.ticketing.domain.Ticket;
@@ -23,7 +23,7 @@ import java.util.Optional;
  * continues multi-step ticket drafts when users respond with additional details.
  */
 @Service
-public class TicketingHandlingService implements MessagingHandlerService {
+public class TicketingHandlingService implements UpdateHandlingService {
     private static final Logger log = LoggerFactory.getLogger(TicketingHandlingService.class);
 
     @Autowired
@@ -80,10 +80,5 @@ public class TicketingHandlingService implements MessagingHandlerService {
             bot.sendMessage(chatId, threadId, formatter.formatError(ex.getMessage()));
             log.error("Failed to collect ticket field for chat {}, user {}: {}", chatId, userId, ex.getMessage(), ex);
         }
-    }
-
-    @Override
-    public Map<String, CommandHandler> getCommands() {
-        return Map.of(ticketCommandHandler.getName(), ticketCommandHandler);
     }
 }

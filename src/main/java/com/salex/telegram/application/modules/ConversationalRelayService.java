@@ -6,7 +6,6 @@ import com.salex.telegram.conversation.ConversationMessage;
 import com.salex.telegram.infrastructure.messaging.LoggedMessage;
 import com.salex.telegram.infrastructure.messaging.MessageRepository;
 import com.salex.telegram.telegram.SalexTelegramBot;
-import com.salex.telegram.telegram.TelegramSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,13 +19,15 @@ import java.util.Map;
  * Fallback conversational module that relays free-form chat to the LLM while persisting history.
  */
 @Service
-public class ConversationalRelayService implements MessagingHandlerService {
+public class ConversationalRelayService implements UpdateHandlingService {
     private static final Logger log = LoggerFactory.getLogger(ConversationalRelayService.class);
 
     @Autowired
     private MessageRepository messageRepository;
+
     @Autowired
     private ConversationContextService conversationContextService;
+
     @Autowired
     private ChatCompletionClient chatCompletionClient;
 
@@ -68,10 +69,5 @@ public class ConversationalRelayService implements MessagingHandlerService {
             bot.sendMessage(chatId, threadId, "[Error] Failed to process message: " + e.getMessage());
             log.error("Failed to handle general message for user {}: {}", userId, e.getMessage(), e);
         }
-    }
-
-    @Override
-    public Map<String, CommandHandler> getCommands() {
-        return Map.of();
     }
 }

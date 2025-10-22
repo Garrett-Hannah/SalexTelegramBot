@@ -1,7 +1,7 @@
 package com.salex.telegram.application.modules.transcription;
 
 import com.salex.telegram.application.modules.CommandHandler;
-import com.salex.telegram.application.modules.MessagingHandlerService;
+import com.salex.telegram.application.modules.UpdateHandlingService;
 import com.salex.telegram.telegram.SalexTelegramBot;
 import com.salex.telegram.transcription.application.TranscriptionService;
 import com.salex.telegram.transcription.domain.TranscriptionException;
@@ -21,7 +21,7 @@ import java.util.Map;
  * Handles automatic audio transcription and exposes the `/transcribe` command.
  */
 @Service
-public class TranscriptionHandlerService implements MessagingHandlerService {
+public class TranscriptionHandlerService implements UpdateHandlingService {
     private static final Logger log = LoggerFactory.getLogger(TranscriptionHandlerService.class);
 
     @Autowired
@@ -59,11 +59,6 @@ public class TranscriptionHandlerService implements MessagingHandlerService {
             bot.sendMessage(chatId, threadId, formatter.formatError(ex.getMessage()));
             log.error("Failed to transcribe audio for user {}: {}", userId, ex.getMessage(), ex);
         }
-    }
-
-    @Override
-    public Map<String, CommandHandler> getCommands() {
-        return Map.of(commandHandler.getName(), commandHandler);
     }
 
     private Message resolveTargetMessage(Message message) {

@@ -1,13 +1,11 @@
 package com.salex.telegram.telegram;
 
 import com.salex.telegram.application.modules.CommandHandler;
-import com.salex.telegram.application.modules.ConversationalRelayService;
-import com.salex.telegram.application.modules.MessagingHandlerService;
+import com.salex.telegram.application.modules.UpdateHandlingService;
 import com.salex.telegram.user.UserRecord;
 import com.salex.telegram.user.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
@@ -27,12 +25,12 @@ final class UpdateRouter {
     private final Map<String, CommandHandler> commands;
     private final UserService userService;
     private final TelegramSender sender;
-    private final List<MessagingHandlerService> messagingHandlerServices;
+    private final List<UpdateHandlingService> messagingHandlerServices;
 
     UpdateRouter(Map<String, CommandHandler> commands,
                  UserService userService,
                  TelegramSender sender,
-                 List<MessagingHandlerService> handlerServiceList) {
+                 List<UpdateHandlingService> handlerServiceList) {
         this.commands = commands;
         this.userService = userService;
         this.sender = sender;
@@ -80,7 +78,7 @@ final class UpdateRouter {
 
         //TODO: make handler list into its own class allowing
         //For higher prieirt of the stuff.
-        for(MessagingHandlerService handler : messagingHandlerServices){
+        for(UpdateHandlingService handler : messagingHandlerServices){
             if(handler.canHandle(update, userId))
             {
                 handler.handle(update, bot, userId);

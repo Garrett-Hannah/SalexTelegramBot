@@ -12,7 +12,8 @@ import java.util.Map;
 
 //TODO: make this into single bot with some extra funcitons etc.
     //Then, make a command.
-public interface MessagingHandlerService {
+//Actually i AM fine with this being the way it is. more so now. I need to set up the command class.
+public interface UpdateHandlingService {
     /**
      * Determines whether the module wants to handle the current update.
      *
@@ -30,9 +31,4 @@ public interface MessagingHandlerService {
      * @param userId the internal user identifier resolved by the bot
      */
     void handle(Update update, SalexTelegramBot bot, long userId);
-
-    /**
-     * @return map of command names to handlers that belong to this module
-     */
-    Map<String, CommandHandler> getCommands();
 }

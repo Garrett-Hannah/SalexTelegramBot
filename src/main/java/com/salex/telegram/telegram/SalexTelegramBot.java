@@ -2,7 +2,7 @@ package com.salex.telegram.telegram;
 
 import com.salex.telegram.application.config.TelegramBotProperties;
 import com.salex.telegram.application.modules.CommandHandler;
-import com.salex.telegram.application.modules.MessagingHandlerService;
+import com.salex.telegram.application.modules.UpdateHandlingService;
 import com.salex.telegram.user.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +32,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     public SalexTelegramBot(TelegramBotProperties properties,
                             Map<String, CommandHandler> commands,
                             UserService userService,
-                            List<MessagingHandlerService> messagingHandlerServiceList) {
+                            List<UpdateHandlingService> messagingHandlerServiceList) {
         super(properties.getToken());
         this.username = properties.getUsername();
         this.commands = commands;

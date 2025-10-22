@@ -1,14 +1,16 @@
 package com.salex.telegram.application.config;
 
+import com.salex.telegram.infrastructure.messaging.MessageRepository;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.sql.Connection;
 import java.util.Optional;
 
 /**
  * Database configuration backing the optional JDBC connection used by the bot.
  */
 @ConfigurationProperties(prefix = "bot.database")
-public class DatabaseProperties {
+public class DatabaseConfiguration {
 
     /**
      * JDBC connection string. When absent, in-memory storage is used.

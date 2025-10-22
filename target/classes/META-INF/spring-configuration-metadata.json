@@ -2,8 +2,8 @@
   "groups": [
     {
       "name": "bot.database",
-      "type": "com.salex.telegram.application.config.DatabaseProperties",
-      "sourceType": "com.salex.telegram.application.config.DatabaseProperties"
+      "type": "com.salex.telegram.application.config.DatabaseConfiguration",
+      "sourceType": "com.salex.telegram.application.config.DatabaseConfiguration"
     },
     {
       "name": "telegram.bot",
@@ -16,23 +16,23 @@
       "name": "bot.database.jdbc-url",
       "type": "java.lang.String",
       "description": "JDBC connection string. When absent, in-memory storage is used.",
-      "sourceType": "com.salex.telegram.application.config.DatabaseProperties"
+      "sourceType": "com.salex.telegram.application.config.DatabaseConfiguration"
     },
     {
       "name": "bot.database.password",
       "type": "java.lang.String",
-      "sourceType": "com.salex.telegram.application.config.DatabaseProperties"
+      "sourceType": "com.salex.telegram.application.config.DatabaseConfiguration"
     },
     {
       "name": "bot.database.username",
       "type": "java.lang.String",
-      "sourceType": "com.salex.telegram.application.config.DatabaseProperties"
+      "sourceType": "com.salex.telegram.application.config.DatabaseConfiguration"
     },
     {
       "name": "bot.database.validation-timeout-seconds",
       "type": "java.lang.Integer",
       "description": "Timeout in seconds used when validating connections.",
-      "sourceType": "com.salex.telegram.application.config.DatabaseProperties"
+      "sourceType": "com.salex.telegram.application.config.DatabaseConfiguration"
     },
     {
       "name": "telegram.bot.token",

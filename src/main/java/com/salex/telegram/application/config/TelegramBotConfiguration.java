@@ -25,7 +25,7 @@ import java.sql.SQLException;
  * Configures Telegram infrastructure beans such as the bots API and optional JDBC connection provider.
  */
 @Configuration
-@EnableConfigurationProperties({TelegramBotProperties.class, DatabaseProperties.class})
+@EnableConfigurationProperties({TelegramBotProperties.class, DatabaseConfiguration.class})
 public class TelegramBotConfiguration {
     private static final Logger log = LoggerFactory.getLogger(TelegramBotConfiguration.class);
 
@@ -42,11 +42,11 @@ public class TelegramBotConfiguration {
     @Bean(destroyMethod = "close")
     @ConditionalOnProperty(prefix = "bot.database", name = "jdbc-url")
     @Conditional(JdbcConnectionAvailableCondition.class)
-    ConnectionProvider connectionProvider(DatabaseProperties properties) {
+    ConnectionProvider connectionProvider(DatabaseConfiguration properties) {
         return createConnectionProvider(properties);
     }
 
-    private ConnectionProvider createConnectionProvider(DatabaseProperties properties) {
+    private ConnectionProvider createConnectionProvider(DatabaseConfiguration properties) {
         String url = properties.jdbcUrl().orElseThrow(() ->
                 new IllegalStateException("bot.database.jdbc-url must be provided when the connection provider bean is created"));
         ConnectionFactory factory = () -> DriverManager.getConnection(

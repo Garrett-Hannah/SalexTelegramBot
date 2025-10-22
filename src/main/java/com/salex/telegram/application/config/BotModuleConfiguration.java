@@ -21,4 +21,6 @@ public class BotModuleConfiguration {
     TranscriptionMessageFormatter transcriptionMessageFormatter() {
         return new TranscriptionMessageFormatter();
     }
+
+
 }

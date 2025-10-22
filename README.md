@@ -102,6 +102,8 @@ CREATE TABLE IF NOT EXISTS ticket_sessions (
 
 Run the DDL against the database pointed to by `JDBC_URL` before starting the bot.
 
+> **Network access:** The bot must reach your PostgreSQL host over TCP 5432 (Supabase requires `sslmode=require`). Verify the network or VPN you are on permits outbound access; restrictive school or corporate networks often block PostgreSQL traffic and will cause startup failures.
+
 ---
 
 ### Build

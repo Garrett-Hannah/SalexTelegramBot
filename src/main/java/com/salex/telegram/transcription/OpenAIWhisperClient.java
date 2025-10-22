@@ -4,6 +4,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.salex.telegram.transcoding.AudioResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -22,27 +25,36 @@ import java.util.UUID;
  * Transcription client that targets OpenAI's Whisper API.
  */
 @Service
-
 public class OpenAIWhisperClient implements TranscriptionClient {
+
+    private static final Logger log = LoggerFactory.getLogger(OpenAIWhisperClient.class);
 
     private final HttpClient httpClient;
     private final String apiKey;
     private final String model;
     private final URI endpoint;
 
-    public OpenAIWhisperClient(HttpClient httpClient, String apiKey, String model) {
-        this(httpClient, apiKey, model, URI.create("https://api.openai.com/v1/audio/transcriptions"));
-    }
-
-    OpenAIWhisperClient(HttpClient httpClient, String apiKey, String model, URI endpoint) {
+    public OpenAIWhisperClient(HttpClient httpClient,
+                               @Value("${bot.openai.api-key:${OPENAI_API_KEY:}}") String apiKey,
+                               @Value("${bot.openai.whisper-model:gpt-4o-transcribe}") String model,
+                               @Value("${bot.openai.endpoint:https://api.openai.com/v1/audio/transcriptions}") String endpointUrl) {
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
-        this.apiKey = Objects.requireNonNull(apiKey, "apiKey");
-        this.model = model == null || model.isBlank() ? "gpt-4o-transcribe" : model;
-        this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
+        this.apiKey = apiKey == null ? "" : apiKey.trim();
+        this.model = (model == null || model.isBlank()) ? "gpt-4o-transcribe" : model.trim();
+        String url = (endpointUrl == null || endpointUrl.isBlank())
+                ? "https://api.openai.com/v1/audio/transcriptions"
+                : endpointUrl.trim();
+        this.endpoint = URI.create(url);
+        if (this.apiKey.isEmpty()) {
+            log.warn("OpenAI Whisper API key not configured; transcription requests will fail");
+        }
     }
 
     @Override
     public TranscriptionResult transcribe(AudioResource audio) {
+        if (apiKey.isEmpty()) {
+            throw new TranscriptionException("OPENAI_API_KEY not configured");
+        }
         try {
             HttpRequest request = buildRequest(audio);
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());

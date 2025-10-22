@@ -1,9 +1,11 @@
 package com.salex.telegram.config;
 
+import com.salex.telegram.bot.SalexTelegramBot;
 import com.salex.telegram.config.condition.JdbcConnectionAvailableCondition;
 import com.salex.telegram.database.ConnectionFactory;
 import com.salex.telegram.database.ConnectionProvider;
 import com.salex.telegram.database.RefreshingConnectionProvider;
+import com.salex.telegram.transcription.TelegramAudioDownloader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -11,6 +13,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Conditional;
+import org.springframework.context.annotation.Lazy;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
@@ -29,6 +32,11 @@ public class TelegramBotConfiguration {
     @Bean
     TelegramBotsApi telegramBotsApi() throws TelegramApiException {
         return new TelegramBotsApi(DefaultBotSession.class);
+    }
+
+    @Bean
+    TelegramAudioDownloader telegramAudioDownloader(@Lazy SalexTelegramBot salexTelegramBot) {
+        return new TelegramAudioDownloader(salexTelegramBot);
     }
 
     @Bean(destroyMethod = "close")
@@ -58,4 +66,6 @@ public class TelegramBotConfiguration {
         }
         return provider;
     }
+
+
 }

@@ -1,6 +1,6 @@
 package com.salex.telegram.ticketing;
 
-import com.salex.telegram.modules.ticketing.commands.TicketMessageFormatter;
+import com.salex.telegram.ticketing.commands.TicketMessageFormatter;
 
 public class TicketHandler {
     private final TicketService ticketService;

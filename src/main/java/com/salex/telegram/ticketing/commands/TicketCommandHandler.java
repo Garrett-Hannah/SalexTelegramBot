@@ -7,6 +7,7 @@ import com.salex.telegram.ticketing.TicketService;
 import com.salex.telegram.modules.CommandHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.Optional;
 /**
  * Dispatches ticket-related commands invoked from Telegram into service calls.
  */
+@Component
 public class TicketCommandHandler implements CommandHandler {
     private static final Logger log = LoggerFactory.getLogger(TicketCommandHandler.class);
     private final TicketService ticketService;
@@ -85,19 +87,7 @@ public class TicketCommandHandler implements CommandHandler {
         }
     }
 
-    /**
-     * Starts a ticket creation workflow and prompts the user for subsequent steps.
-     *
-     * @param chatId chat where the command originated
-     * @param userId internal user identifier
-     * @param bot    bot instance used to send replies
-     */
     private void handleNewTicket(long chatId, Integer threadId, long userId, SalexTelegramBot bot) {
-        Ticket ticket = ticketService.startTicketCreation(chatId, userId);
-        log.info("User {} started ticket workflow for ticket {}", userId, ticket.getId());
-        bot.sendMessage(chatId, threadId, formatter.formatCreationPrompt(ticket));
-        Optional<TicketDraft.Step> next = ticketService.getActiveStep(chatId, userId);
-        next.ifPresent(step -> bot.sendMessage(chatId, threadId, formatter.formatNextStepPrompt(step)));
     }
 
     /**

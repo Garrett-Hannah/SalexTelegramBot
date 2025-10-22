@@ -7,6 +7,7 @@ import com.salex.telegram.transcription.TranscriptionService;
 import com.salex.telegram.modules.CommandHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
@@ -15,6 +16,7 @@ import java.util.Objects;
 /**
  * Telegram command handler that transcribes audio messages.
  */
+@Component
 public class TranscriptionCommandHandler implements CommandHandler {
     private static final Logger log = LoggerFactory.getLogger(TranscriptionCommandHandler.class);
     private final TranscriptionService transcriptionService;

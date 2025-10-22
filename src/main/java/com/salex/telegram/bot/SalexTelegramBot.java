@@ -20,6 +20,7 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
 
     private final String username;
     //TODO: turn command into a component to interact with the spring project.
+
     private final Map<String, CommandHandler> commands;
     private final UserService userService;
     private final TelegramSender telegramSender;

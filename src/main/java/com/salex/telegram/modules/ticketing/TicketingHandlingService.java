@@ -6,16 +6,16 @@ import com.salex.telegram.modules.MessagingHandlerService;
 import com.salex.telegram.ticketing.Ticket;
 import com.salex.telegram.ticketing.TicketDraft;
 import com.salex.telegram.ticketing.TicketService;
-import com.salex.telegram.modules.ticketing.commands.TicketCommandHandler;
-import com.salex.telegram.modules.ticketing.commands.TicketMessageFormatter;
+import com.salex.telegram.ticketing.commands.TicketCommandHandler;
+import com.salex.telegram.ticketing.commands.TicketMessageFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -26,15 +26,12 @@ import java.util.Optional;
 public class TicketingHandlingService implements MessagingHandlerService {
     private static final Logger log = LoggerFactory.getLogger(TicketingHandlingService.class);
 
-    private final TicketService ticketService;
-    private final TicketMessageFormatter formatter;
-    private final CommandHandler ticketCommandHandler;
-
-    public TicketingHandlingService(TicketService ticketService, TicketMessageFormatter formatter) {
-        this.ticketService = Objects.requireNonNull(ticketService, "ticketService");
-        this.formatter = Objects.requireNonNull(formatter, "formatter");
-        this.ticketCommandHandler = new TicketCommandHandler(ticketService, formatter);
-    }
+    @Autowired
+    private TicketService ticketService;
+    @Autowired
+    private TicketMessageFormatter formatter;
+    @Autowired
+    private TicketCommandHandler ticketCommandHandler;
 
     @Override
     public boolean canHandle(Update update, long userId) {

@@ -8,7 +8,7 @@ import com.salex.telegram.ticketing.inmemory.InMemoryTicketRepository;
 import com.salex.telegram.ticketing.inmemory.InMemoryTicketSessionManager;
 import com.salex.telegram.ticketing.server.ServerTicketRepository;
 import com.salex.telegram.ticketing.server.ServerTicketSessionManager;
-import com.salex.telegram.modules.ticketing.commands.TicketMessageFormatter;
+import com.salex.telegram.ticketing.commands.TicketMessageFormatter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;

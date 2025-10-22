@@ -6,16 +6,16 @@ import com.salex.telegram.modules.MessagingHandlerService;
 import com.salex.telegram.transcription.TranscriptionException;
 import com.salex.telegram.transcription.TranscriptionResult;
 import com.salex.telegram.transcription.TranscriptionService;
-import com.salex.telegram.modules.transcription.commands.TranscriptionCommandHandler;
-import com.salex.telegram.modules.transcription.commands.TranscriptionMessageFormatter;
+import com.salex.telegram.transcription.commands.TranscriptionCommandHandler;
+import com.salex.telegram.transcription.commands.TranscriptionMessageFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Handles automatic audio transcription and exposes the `/transcribe` command.
@@ -24,16 +24,12 @@ import java.util.Objects;
 public class TranscriptionHandlerService implements MessagingHandlerService {
     private static final Logger log = LoggerFactory.getLogger(TranscriptionHandlerService.class);
 
-    private final TranscriptionService transcriptionService;
-    private final TranscriptionMessageFormatter formatter;
-    private final CommandHandler commandHandler;
-
-    public TranscriptionHandlerService(TranscriptionService transcriptionService,
-                                       TranscriptionMessageFormatter formatter) {
-        this.transcriptionService = Objects.requireNonNull(transcriptionService, "transcriptionService");
-        this.formatter = Objects.requireNonNull(formatter, "formatter");
-        this.commandHandler = new TranscriptionCommandHandler(transcriptionService, formatter);
-    }
+    @Autowired
+    private TranscriptionService transcriptionService;
+    @Autowired
+    private TranscriptionMessageFormatter formatter;
+    @Autowired
+    private TranscriptionCommandHandler commandHandler;
 
     @Override
     public boolean canHandle(Update update, long userId) {

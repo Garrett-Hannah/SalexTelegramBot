@@ -21,12 +21,10 @@ import java.util.function.Supplier;
  * available so the bot can provide stateful responses without repeatedly querying the database.
  */
 //TODO: does this need to be a service?
-@Service
 public class ConversationContextService {
     private static final Logger log = LoggerFactory.getLogger(ConversationContextService.class);
     private static final int DEFAULT_MAX_MESSAGES = 20;
 
-    @Autowired
     private final MessageRepository messageRepository;
     private final int maxMessages;
     private final Map<ContextKey, ConversationHistory> histories = new ConcurrentHashMap<>();

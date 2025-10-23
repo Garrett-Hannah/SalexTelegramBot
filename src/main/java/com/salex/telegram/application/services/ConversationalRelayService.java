@@ -1,4 +1,4 @@
-package com.salex.telegram.application.modules;
+package com.salex.telegram.application.services;
 
 import com.salex.telegram.conversation.ChatCompletionClient;
 import com.salex.telegram.conversation.ConversationContextService;
@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Fallback conversational module that relays free-form chat to the LLM while persisting history.

@@ -1,4 +1,4 @@
-package com.salex.telegram.application.modules;
+package com.salex.telegram.application.services;
 
 import java.util.Map;
 

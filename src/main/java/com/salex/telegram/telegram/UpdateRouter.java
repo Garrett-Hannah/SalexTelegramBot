@@ -1,7 +1,7 @@
 package com.salex.telegram.telegram;
 
-import com.salex.telegram.application.modules.CommandHandler;
-import com.salex.telegram.application.modules.UpdateHandlingService;
+import com.salex.telegram.application.services.MenuCommandHandler;
+import com.salex.telegram.application.services.UpdateHandlingService;
 import com.salex.telegram.user.UserRecord;
 import com.salex.telegram.user.UserService;
 import org.slf4j.Logger;
@@ -12,26 +12,23 @@ import org.telegram.telegrambots.meta.api.objects.User;
 
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 /**
  * Centralises routing of incoming updates to command handlers or modules.
  */
-//TODO: maybe set into a component/service?
 final class UpdateRouter {
     private static final Logger log = LoggerFactory.getLogger(UpdateRouter.class);
 
-    private final Map<String, CommandHandler> commands;
     private final UserService userService;
+    private final CommandRouter commandRouter;
     private final TelegramSender sender;
     private final List<UpdateHandlingService> messagingHandlerServices;
 
-    UpdateRouter(Map<String, CommandHandler> commands,
+    UpdateRouter(CommandRouter commandRouter,
                  UserService userService,
                  TelegramSender sender,
                  List<UpdateHandlingService> handlerServiceList) {
-        this.commands = commands;
+        this.commandRouter = commandRouter;
         this.userService = userService;
         this.sender = sender;
         this.messagingHandlerServices = handlerServiceList;
@@ -71,10 +68,9 @@ final class UpdateRouter {
         }
 
         if (text.startsWith("/")) {
-            dispatchCommand(update, bot, userId, chatId, threadId);
+            commandRouter.dispatch(update, bot, userId);
             return;
         }
-
 
         //TODO: make handler list into its own class allowing
         //For higher prieirt of the stuff.
@@ -88,21 +84,21 @@ final class UpdateRouter {
 
     }
 
-    private void dispatchCommand(Update update,
-                                 SalexTelegramBot bot,
-                                 long userId,
-                                 long chatId,
-                                 Integer threadId) {
-        String commandText = update.getMessage().getText().trim();
-        String commandKey = commandText.split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
-        CommandHandler handler = commands.get(commandKey);
-        if (handler == null) {
-            sender.sendMessage(chatId, threadId, "Unknown command: " + commandKey);
-            log.warn("User {} invoked unknown command {}", userId, commandKey);
-            return;
-        }
-
-        log.info("Executing command {} for user {}", handler.getName(), userId);
-        handler.handle(update, bot, userId);
-    }
+//    private void dispatchCommand(Update update,
+//                                 SalexTelegramBot bot,
+//                                 long userId,
+//                                 long chatId,
+//                                 Integer threadId) {
+//        String commandText = update.getMessage().getText().trim();
+//        String commandKey = commandText.split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
+//        CommandHandler handler = commands.get(commandKey);
+//        if (handler == null) {
+//            sender.sendMessage(chatId, threadId, "Unknown command: " + commandKey);
+//            log.warn("User {} invoked unknown command {}", userId, commandKey);
+//            return;
+//        }
+//
+//        log.info("Executing command {} for user {}", handler.getName(), userId);
+//        handler.handle(update, bot, userId);
+//    }
 }

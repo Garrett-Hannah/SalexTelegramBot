@@ -1,7 +1,6 @@
-package com.salex.telegram.application.modules.ticketing;
+package com.salex.telegram.application.services.ticketing;
 
-import com.salex.telegram.application.modules.CommandHandler;
-import com.salex.telegram.application.modules.UpdateHandlingService;
+import com.salex.telegram.application.services.UpdateHandlingService;
 import com.salex.telegram.telegram.SalexTelegramBot;
 import com.salex.telegram.ticketing.application.TicketService;
 import com.salex.telegram.ticketing.domain.Ticket;
@@ -15,12 +14,12 @@ import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
-import java.util.Map;
 import java.util.Optional;
 
 /**
- * Encapsulates everything related to ticket workflows: registers the `/ticket` command and
- * continues multi-step ticket drafts when users respond with additional details.
+ * Continues multi-step ticket drafts by consuming free-form replies whenever a draft session is active.
+ * Delegates persistence and validation to {@link TicketService} and surfaces user feedback via
+ * {@link TicketMessageFormatter}.
  */
 @Service
 public class TicketingHandlingService implements UpdateHandlingService {

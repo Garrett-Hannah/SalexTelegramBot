@@ -1,8 +1,7 @@
 package com.salex.telegram.telegram;
 
 import com.salex.telegram.application.config.TelegramBotProperties;
-import com.salex.telegram.application.modules.CommandHandler;
-import com.salex.telegram.application.modules.UpdateHandlingService;
+import com.salex.telegram.application.services.UpdateHandlingService;
 import com.salex.telegram.user.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +10,6 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Spring-managed Telegram bot that routes updates through to modules or senders.
@@ -23,24 +21,22 @@ public class SalexTelegramBot extends TelegramLongPollingBot {
     private final String username;
 
     //TODO: turn command into a component to interact with the spring project.
-    private final Map<String, CommandHandler> commands;
-    private final UserService userService;
     private final TelegramSender telegramSender;
     private final UpdateRouter updateRouter;
+    private final CommandRouter commandRouter;
 
     //Need to find if i can set up a alternate way of this. maybe maybe not idk,
     public SalexTelegramBot(TelegramBotProperties properties,
-                            Map<String, CommandHandler> commands,
+                            CommandRegistry commandRegistry,
                             UserService userService,
                             List<UpdateHandlingService> messagingHandlerServiceList) {
         super(properties.getToken());
         this.username = properties.getUsername();
-        this.commands = commands;
-        this.userService = userService;
         this.telegramSender = new TelegramSender(this);
-        this.updateRouter = new UpdateRouter(commands, userService, telegramSender, messagingHandlerServiceList);
+        this.commandRouter = new CommandRouter(commandRegistry, telegramSender);
+        this.updateRouter = new UpdateRouter(commandRouter, userService, telegramSender, messagingHandlerServiceList);
 
-        log.info("TelegramBot registered {} command handlers", commands.size());
+        log.info("TelegramBot registered {} command handlers", commandRegistry.asMap().size());
     }
 
     @Override

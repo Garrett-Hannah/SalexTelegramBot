@@ -1,6 +1,6 @@
 package com.salex.telegram.transcription.presentation;
 
-import com.salex.telegram.application.modules.CommandHandler;
+import com.salex.telegram.application.services.CommandHandler;
 import com.salex.telegram.telegram.SalexTelegramBot;
 import com.salex.telegram.transcription.application.TranscriptionService;
 import com.salex.telegram.transcription.domain.TranscriptionException;

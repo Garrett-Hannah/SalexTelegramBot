@@ -1,18 +1,12 @@
-package com.salex.telegram.application.modules;
+package com.salex.telegram.application.services;
 
 import com.salex.telegram.telegram.SalexTelegramBot;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
-import java.util.Map;
-
 /**
- * Represents a cohesive feature area of the bot. Modules can expose command handlers
+ * Represents a cohesive feature area of the bot. Services can expose command handlers
  * and optionally consume non-command updates when {@link #canHandle(Update, long)} returns true.
  */
-
-//TODO: make this into single bot with some extra funcitons etc.
-    //Then, make a command.
-//Actually i AM fine with this being the way it is. more so now. I need to set up the command class.
 public interface UpdateHandlingService {
     /**
      * Determines whether the module wants to handle the current update.

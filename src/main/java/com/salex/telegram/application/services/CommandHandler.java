@@ -1,4 +1,4 @@
-package com.salex.telegram.application.modules;
+package com.salex.telegram.application.services;
 
 import com.salex.telegram.telegram.SalexTelegramBot;
 import org.telegram.telegrambots.meta.api.objects.Update;

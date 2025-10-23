@@ -13,6 +13,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
  */
 public final class TelegramSender {
     private static final Logger log = LoggerFactory.getLogger(TelegramSender.class);
+
     private final TelegramLongPollingBot bot;
 
     TelegramSender(TelegramLongPollingBot bot) {

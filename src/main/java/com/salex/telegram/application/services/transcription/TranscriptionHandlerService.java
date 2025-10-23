@@ -1,7 +1,6 @@
-package com.salex.telegram.application.modules.transcription;
+package com.salex.telegram.application.services.transcription;
 
-import com.salex.telegram.application.modules.CommandHandler;
-import com.salex.telegram.application.modules.UpdateHandlingService;
+import com.salex.telegram.application.services.UpdateHandlingService;
 import com.salex.telegram.telegram.SalexTelegramBot;
 import com.salex.telegram.transcription.application.TranscriptionService;
 import com.salex.telegram.transcription.domain.TranscriptionException;
@@ -14,8 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
-
-import java.util.Map;
 
 /**
  * Automatically transcribes audio-capable updates so users receive text without invoking a command.

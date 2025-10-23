@@ -1,10 +1,9 @@
 package com.salex.telegram.ticketing.presentation;
 
-import com.salex.telegram.application.modules.CommandHandler;
+import com.salex.telegram.application.services.CommandHandler;
 import com.salex.telegram.telegram.SalexTelegramBot;
 import com.salex.telegram.ticketing.application.TicketService;
 import com.salex.telegram.ticketing.domain.Ticket;
-import com.salex.telegram.ticketing.domain.TicketDraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

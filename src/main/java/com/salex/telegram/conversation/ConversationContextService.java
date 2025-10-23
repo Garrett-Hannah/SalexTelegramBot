@@ -4,8 +4,6 @@ import com.salex.telegram.infrastructure.messaging.LoggedMessage;
 import com.salex.telegram.infrastructure.messaging.MessageRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -48,16 +46,16 @@ public class ConversationContextService {
      * @param userText latest user prompt
      * @return ordered list of messages to send to the LLM API
      */
-    public List<ConversationMessage> buildRequestMessages(long chatId, long userId, String userText) {
+    public List<ConversationMessageRecord> buildRequestMessages(long chatId, long userId, String userText) {
         Objects.requireNonNull(userText, "userText");
 
         ConversationHistory history = histories.computeIfAbsent(new ContextKey(chatId, userId), this::createHistory);
         history.seedIfNecessary(() -> loadFromRepository(chatId, userId));
 
-        List<ConversationMessage> snapshot = history.snapshot();
-        List<ConversationMessage> request = new ArrayList<>(snapshot.size() + 1);
+        List<ConversationMessageRecord> snapshot = history.snapshot();
+        List<ConversationMessageRecord> request = new ArrayList<>(snapshot.size() + 1);
         request.addAll(snapshot);
-        request.add(new ConversationMessage("user", userText));
+        request.add(new ConversationMessageRecord("user", userText));
         log.debug("Prepared {} context messages ({} prior) for chat {}, user {}",
                 request.size(),
                 snapshot.size(),
@@ -75,8 +73,8 @@ public class ConversationContextService {
 
         ConversationHistory history = histories.computeIfAbsent(new ContextKey(chatId, userId), this::createHistory);
         history.seedIfNecessary(() -> loadFromRepository(chatId, userId));
-        history.append(new ConversationMessage("user", userText));
-        history.append(new ConversationMessage("assistant", assistantReply));
+        history.append(new ConversationMessageRecord("user", userText));
+        history.append(new ConversationMessageRecord("assistant", assistantReply));
         log.debug("Recorded exchange for chat {}, user {}; context now holds {} messages",
                 chatId,
                 userId,
@@ -94,7 +92,7 @@ public class ConversationContextService {
         return new ConversationHistory(maxMessages);
     }
 
-    private List<ConversationMessage> loadFromRepository(long chatId, long userId) {
+    private List<ConversationMessageRecord> loadFromRepository(long chatId, long userId) {
         List<LoggedMessage> stored;
         try {
             stored = messageRepository.findRecent(chatId, userId, maxMessages / 2);
@@ -107,16 +105,16 @@ public class ConversationContextService {
             return List.of();
         }
 
-        List<ConversationMessage> messages = new ArrayList<>(Math.min(maxMessages, stored.size() * 2));
+        List<ConversationMessageRecord> messages = new ArrayList<>(Math.min(maxMessages, stored.size() * 2));
         for (LoggedMessage loggedMessage : stored) {
             String request = loggedMessage.getRequestText();
             if (request != null && !request.isBlank()) {
-                messages.add(new ConversationMessage("user", request));
+                messages.add(new ConversationMessageRecord("user", request));
             }
 
             String reply = loggedMessage.getReplyText();
             if (reply != null && !reply.isBlank()) {
-                messages.add(new ConversationMessage("assistant", reply));
+                messages.add(new ConversationMessageRecord("assistant", reply));
             }
         }
 
@@ -134,14 +132,14 @@ public class ConversationContextService {
 
     private static final class ConversationHistory {
         private final int maxEntries;
-        private final Deque<ConversationMessage> messages = new ArrayDeque<>();
+        private final Deque<ConversationMessageRecord> messages = new ArrayDeque<>();
         private boolean seeded;
 
         private ConversationHistory(int maxEntries) {
             this.maxEntries = maxEntries;
         }
 
-        private void seedIfNecessary(Supplier<List<ConversationMessage>> loader) {
+        private void seedIfNecessary(Supplier<List<ConversationMessageRecord>> loader) {
             if (seeded) {
                 return;
             }
@@ -150,9 +148,9 @@ public class ConversationContextService {
                     return;
                 }
                 if (loader != null) {
-                    List<ConversationMessage> initial = loader.get();
+                    List<ConversationMessageRecord> initial = loader.get();
                     if (initial != null && !initial.isEmpty()) {
-                        for (ConversationMessage message : initial) {
+                        for (ConversationMessageRecord message : initial) {
                             appendInternal(message);
                         }
                     }
@@ -161,20 +159,20 @@ public class ConversationContextService {
             }
         }
 
-        private List<ConversationMessage> snapshot() {
+        private List<ConversationMessageRecord> snapshot() {
             synchronized (this) {
                 return List.copyOf(messages);
             }
         }
 
-        private void append(ConversationMessage message) {
+        private void append(ConversationMessageRecord message) {
             Objects.requireNonNull(message, "message");
             synchronized (this) {
                 appendInternal(message);
             }
         }
 
-        private void appendInternal(ConversationMessage message) {
+        private void appendInternal(ConversationMessageRecord message) {
             messages.addLast(message);
             while (messages.size() > maxEntries) {
                 messages.removeFirst();

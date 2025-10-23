@@ -14,5 +14,5 @@ public interface ChatCompletionClient {
      * @return the assistant reply
      * @throws Exception when the underlying transport or service call fails
      */
-    String complete(List<ConversationMessage> conversation) throws Exception;
+    String complete(List<ConversationMessageRecord> conversation) throws Exception;
 }

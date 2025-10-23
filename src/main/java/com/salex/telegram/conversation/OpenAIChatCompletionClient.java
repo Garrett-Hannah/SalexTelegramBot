@@ -42,7 +42,7 @@ public class OpenAIChatCompletionClient implements ChatCompletionClient {
     }
 
     @Override
-    public String complete(List<ConversationMessage> conversation) throws Exception {
+    public String complete(List<ConversationMessageRecord> conversation) throws Exception {
         Objects.requireNonNull(conversation, "conversation");
 
         JsonObject payload = new JsonObject();
@@ -67,6 +67,8 @@ public class OpenAIChatCompletionClient implements ChatCompletionClient {
         if (choices == null || choices.size() == 0) {
             throw new IllegalStateException("Chat completion response missing choices");
         }
+        //NOTE: HERE IS WHERE THE PROGRAM WILL RETURN THE MESSAGE AS A MESSAGE!
+
         JsonObject message = choices.get(0).getAsJsonObject().getAsJsonObject("message");
         if (message == null || !message.has("content")) {
             throw new IllegalStateException("Chat completion response missing message content");
@@ -74,7 +76,8 @@ public class OpenAIChatCompletionClient implements ChatCompletionClient {
         return message.get("content").getAsString();
     }
 
-    private JsonArray toPayloadMessages(List<ConversationMessage> conversation) {
+    //Generate the list of inputs.
+    private JsonArray toPayloadMessages(List<ConversationMessageRecord> conversation) {
         JsonArray messages = new JsonArray();
         if (conversation.isEmpty()) {
             JsonObject fallbackMessage = new JsonObject();
@@ -84,12 +87,24 @@ public class OpenAIChatCompletionClient implements ChatCompletionClient {
             return messages;
         }
 
-        for (ConversationMessage entry : conversation) {
+        for (ConversationMessageRecord entry : conversation) {
             JsonObject messageObject = new JsonObject();
             messageObject.addProperty("role", entry.role());
-            messageObject.addProperty("content", entry.content());
+
+            //TODO: turn into a function that can be auto fulfilled.
+            //THIS IS WHERE LANGCHAIN WILL GO INTO. 
+            StringBuilder messageContent = new StringBuilder();
+            messageContent.append(entry.content());
+            messageContent.append("\n");
+            messageContent.append(entry.timestamp().toString());
+
+            messageObject.addProperty("content", messageContent.toString());
             messages.add(messageObject);
+
         }
+
+
+
         return messages;
     }
 }

@@ -2,7 +2,7 @@ package com.salex.telegram.application.services;
 
 import com.salex.telegram.conversation.ChatCompletionClient;
 import com.salex.telegram.conversation.ConversationContextService;
-import com.salex.telegram.conversation.ConversationMessage;
+import com.salex.telegram.conversation.ConversationMessageRecord;
 import com.salex.telegram.infrastructure.messaging.LoggedMessage;
 import com.salex.telegram.infrastructure.messaging.MessageRepository;
 import com.salex.telegram.telegram.SalexTelegramBot;
@@ -54,7 +54,7 @@ public class ConversationalRelayService implements UpdateHandlingService {
         try {
             bot.sendChatTyping(chatId, threadId);
 
-            List<ConversationMessage> requestMessages =
+            List<ConversationMessageRecord> requestMessages =
                     conversationContextService.buildRequestMessages(chatId, userId, userText);
             String replyText = chatCompletionClient.complete(requestMessages);
             log.info("ChatGPT responded to user {} with {} characters", userId, replyText.length());

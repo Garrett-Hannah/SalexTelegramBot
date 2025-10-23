@@ -36,15 +36,15 @@ class ConversationContextServiceTest {
                 new LoggedMessage(USER_ID, CHAT_ID, "status?", "working on it")
         ));
 
-        List<ConversationMessage> first = service.buildRequestMessages(CHAT_ID, USER_ID, "new info");
+        List<ConversationMessageRecord> first = service.buildRequestMessages(CHAT_ID, USER_ID, "new info");
 
-        assertThat(first).extracting(ConversationMessage::content)
+        assertThat(first).extracting(ConversationMessageRecord::content)
                 .containsExactly("hello", "hi there", "status?", "working on it", "new info");
         verify(messageRepository).findRecent(CHAT_ID, USER_ID, 3);
 
-        List<ConversationMessage> second = service.buildRequestMessages(CHAT_ID, USER_ID, "follow up");
+        List<ConversationMessageRecord> second = service.buildRequestMessages(CHAT_ID, USER_ID, "follow up");
 
-        assertThat(second).last().extracting(ConversationMessage::content).isEqualTo("follow up");
+        assertThat(second).last().extracting(ConversationMessageRecord::content).isEqualTo("follow up");
         verifyNoMoreInteractions(messageRepository);
     }
 
@@ -54,8 +54,8 @@ class ConversationContextServiceTest {
 
         service.recordExchange(CHAT_ID, USER_ID, "issue details", "ack");
 
-        List<ConversationMessage> request = service.buildRequestMessages(CHAT_ID, USER_ID, "next step");
-        assertThat(request).extracting(ConversationMessage::content)
+        List<ConversationMessageRecord> request = service.buildRequestMessages(CHAT_ID, USER_ID, "next step");
+        assertThat(request).extracting(ConversationMessageRecord::content)
                 .containsExactly("issue details", "ack", "next step");
     }
 
@@ -72,8 +72,8 @@ class ConversationContextServiceTest {
                 new LoggedMessage(USER_ID, CHAT_ID, "refreshed", "response")
         ));
 
-        List<ConversationMessage> refreshed = service.buildRequestMessages(CHAT_ID, USER_ID, "again");
-        assertThat(refreshed).extracting(ConversationMessage::content)
+        List<ConversationMessageRecord> refreshed = service.buildRequestMessages(CHAT_ID, USER_ID, "again");
+        assertThat(refreshed).extracting(ConversationMessageRecord::content)
                 .containsExactly("refreshed", "response", "again");
         verify(messageRepository, times(2)).findRecent(CHAT_ID, USER_ID, 3);
     }

@@ -86,6 +86,7 @@ public class TicketCommandHandler implements CommandHandler {
     }
 
     private void handleNewTicket(long chatId, Integer threadId, long userId, SalexTelegramBot bot) {
+
     }
 
     /**
